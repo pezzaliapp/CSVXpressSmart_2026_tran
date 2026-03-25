@@ -931,15 +931,21 @@ function onTranCalc(){
 
 // ── COLLEGA ARTICOLO DAL PREVENTIVO ──
 function refreshTranLinkSelect(){
-  const sel=$id('tranLinkArticle');if(!sel)return;
-  sel.innerHTML='<option value="">— Seleziona articolo dal preventivo —</option>';
-  articoliAggiunti.forEach((a,idx)=>{
-    const o=document.createElement('option');
-    o.value=idx;
-    o.textContent=(idx+1)+'. '+a.codice+' — '+a.descrizione+(a.quantita>1?' (×'+a.quantita+')':'');
-    sel.appendChild(o);
-  });
-  $setText('tranLinkInfo', articoliAggiunti.length?'Seleziona un articolo per pre-compilare i campi trasporto.':'Aggiungi prima articoli nel tab Preventivo.');
+  // Aggiorna select singolo
+  const sel=$id('tranLinkArticle');
+  if(sel){
+    sel.innerHTML='<option value="">— Seleziona articolo dal preventivo —</option>';
+    articoliAggiunti.forEach((a,idx)=>{
+      const o=document.createElement('option');
+      o.value=idx;
+      o.textContent=(idx+1)+'. '+a.codice+' — '+a.descrizione+(a.quantita>1?' (×'+a.quantita+')':'');
+      sel.appendChild(o);
+    });
+  }
+  // Aggiorna lista multi se visibile
+  if($id('tranModeMulti')?.checked) refreshTranMultiList();
+
+  $setText('tranLinkInfo', articoliAggiunti.length?'':'Aggiungi prima articoli nel tab Preventivo.');
 }
 
 // ── Normalizzazione per match articolo (identica a Trasporti-Use-Friendly) ──
@@ -978,114 +984,217 @@ function findTranArticle(codice, descrizione){
   return found || null;
 }
 
-function applyTranFromArticolo(){
-  const idx=parseInt($val('tranLinkArticle'));
-  if(isNaN(idx)||!articoliAggiunti[idx]){showToast('⚠️ Seleziona un articolo');return;}
-  const a=articoliAggiunti[idx];
+// ── MULTI-ARTICOLO: aggiorna lista checkbox ──
+function refreshTranMultiList(){
+  const container=$id('tranMultiCheckList');
+  if(!container)return;
+  container.innerHTML='';
+  if(!articoliAggiunti.length){
+    container.innerHTML='<p class="muted small">Aggiungi prima articoli nel tab Preventivo.</p>';
+    return;
+  }
+  articoliAggiunti.forEach((a,idx)=>{
+    const div=document.createElement('div');
+    div.className='tran-multi-item';
+    div.dataset.idx=idx;
+    div.innerHTML='<input type="checkbox" id="tranMultiChk'+idx+'" value="'+idx+'"/>'
+      +'<label for="tranMultiChk'+idx+'" style="cursor:pointer;flex:1">'
+      +'<strong>'+esc(a.codice)+'</strong> — '+esc(a.descrizione)
+      +(a.quantita>1?' <span class="muted">(×'+a.quantita+')</span>':'')
+      +'</label>';
+    // click su tutta la riga seleziona il checkbox
+    div.addEventListener('click',e=>{
+      if(e.target.tagName==='INPUT')return;
+      const chk=div.querySelector('input[type="checkbox"]');
+      if(chk){chk.checked=!chk.checked;div.classList.toggle('selected',chk.checked);}
+    });
+    div.querySelector('input').addEventListener('change',e=>{
+      div.classList.toggle('selected',e.target.checked);
+    });
+    container.appendChild(div);
+  });
+}
 
-  // ── Cerca articolo in articles.json (per palletType e rules) ──
-  const tranArt=findTranArticle(a.codice, a.descrizione);
+// ── MULTI-ARTICOLO: cerca combinazione in articles.json ──
+function cercaCombinazione(){
+  // Raccoglie gli articoli selezionati
+  const checked=[...document.querySelectorAll('#tranMultiCheckList input[type="checkbox"]:checked')]
+    .map(c=>parseInt(c.value))
+    .filter(i=>!isNaN(i)&&articoliAggiunti[i]);
 
-  // ── Quantità ──
-  const qta=Math.max(1,parseInt(a.quantita||1)||1);
-  $setVal('tranQty',String(qta));
+  if(checked.length===0){showToast('⚠️ Seleziona almeno un articolo');return;}
 
-  const msgs=[];
-  msgs.push('Articolo: '+a.codice+' — Qtà: '+qta);
+  const selItems=checked.map(i=>articoliAggiunti[i]);
+  const selNorms=selItems.map(a=>({orig:a,n:normCode(a.codice)+' '+normCode(a.descrizione)}));
 
-  // ── Determina servizio: regole note → forceService / forceGroupage ──
+  const resultCard=$id('tranComboResult');
+  const titleEl=$id('tranComboTitle');
+  const optionsEl=$id('tranComboOptions');
+  const manualEl=$id('tranComboManual');
+  if(!resultCard)return;
+
+  resultCard.style.display='block';
+  optionsEl.innerHTML='';
+
+  // Se articolo singolo: usa logica normale
+  if(checked.length===1){
+    applyTranFromArticolo_byIdx(checked[0]);
+    resultCard.style.display='none';
+    return;
+  }
+
+  // ── Costruisce le query di ricerca ──
+  // Per ogni combinazione in articles.json, calcola quante parti matchano
+  const results=[];
+
+  TRAN.articles.forEach(art=>{
+    const artName=(art.name||'');
+    // Scompone il nome in parti (split su +)
+    const artParts=artName.split('+').map(p=>normCode(p.trim())).filter(Boolean);
+    if(artParts.length<2)return; // solo combinazioni
+
+    // Conta quanti articoli selezionati matchano le parti
+    let matchedParts=0;
+    const matchDetail=[];
+
+    artParts.forEach(ap=>{
+      const matchedItem=selNorms.find(sn=>sn.n.includes(ap)||ap.includes(normCode(sn.orig.descrizione)));
+      if(matchedItem){matchedParts++;matchDetail.push({part:ap,item:matchedItem.orig});}
+    });
+
+    const score=matchedParts/artParts.length;
+    if(score>0){
+      results.push({art,artParts,matchedParts,totalParts:artParts.length,score,matchDetail});
+    }
+  });
+
+  // Ordina per score desc
+  results.sort((a,b)=>b.score-a.score||b.matchedParts-a.matchedParts);
+
+  const topResults=results.slice(0,5);
+  const nomiSel=selItems.map(a=>a.descrizione).join(' + ');
+
+  if(topResults.length===0){
+    // Nessuna combinazione trovata → mostra selezione manuale
+    titleEl.textContent='Nessuna combinazione trovata per: '+nomiSel;
+    titleEl.style.color='var(--warning)';
+    optionsEl.innerHTML='<p class="muted small">Nessuna combinazione corrispondente in archivio. Seleziona la taglia bancale manualmente:</p>';
+    manualEl.style.display='block';
+    populateComboPalletTypeSelect();
+    $setText('tranLinkInfo','Combinazione non in archivio — seleziona taglia manualmente');
+    return;
+  }
+
+  // Match esatto (score=1): applica subito
+  const exact=topResults.find(r=>r.score===1);
+  if(exact){
+    titleEl.textContent='✅ Combinazione trovata: '+exact.art.name;
+    titleEl.style.color='var(--tran)';
+    optionsEl.innerHTML='';
+    manualEl.style.display='none';
+    applyTranArticleData(exact.art, selItems);
+    // Mostra anche il risultato visivo
+    const div=document.createElement('div');
+    div.className='tran-combo-option exact';
+    div.innerHTML='<span class="combo-name">'+esc(exact.art.name)+'</span>'
+      +'<span class="combo-pallet">'+esc(exact.art.pack?.palletType||'—')+'</span>';
+    optionsEl.appendChild(div);
+    return;
+  }
+
+  // Risultati parziali: mostra opzioni cliccabili
+  titleEl.textContent='Combinazioni simili trovate — scegli quella corretta:';
+  titleEl.style.color='var(--warning)';
+  manualEl.style.display='block';
+  populateComboPalletTypeSelect();
+
+  topResults.forEach(r=>{
+    const pct=Math.round(r.score*100);
+    const div=document.createElement('div');
+    div.className='tran-combo-option';
+    div.innerHTML='<span>'
+      +'<span class="combo-name">'+esc(r.art.name)+'</span>'
+      +'<span class="combo-match"> ('+pct+'% corrispondente)</span>'
+      +'</span>'
+      +'<span class="combo-pallet">'+esc(r.art.pack?.palletType||'—')+'</span>';
+    div.addEventListener('click',()=>{
+      // Evidenzia la scelta
+      document.querySelectorAll('.tran-combo-option').forEach(el=>el.classList.remove('exact'));
+      div.classList.add('exact');
+      applyTranArticleData(r.art, selItems);
+      titleEl.textContent='✅ Applicato: '+r.art.name;
+      titleEl.style.color='var(--tran)';
+    });
+    optionsEl.appendChild(div);
+  });
+
+  $setText('tranLinkInfo','Seleziona la combinazione corretta tra quelle suggerite.');
+}
+
+function populateComboPalletTypeSelect(){
+  const sel=$id('tranComboPalletType');
+  if(!sel||sel.options.length>1)return; // già popolato
+  const types=TRAN.palletRates?.meta?.palletTypes||[];
+  types.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
+}
+
+// Applica dati da un articolo trasporti (usato sia dal singolo che dal multi)
+function applyTranArticleData(tranArt, selItems){
   const rules=tranArt?.rules||{};
   const note=tranArt?.note||tranArt?.notes||tranArt?.nota||'';
   const noteUp=(note||'').toUpperCase();
+  const forceGroupage=!!(rules.forceService==='GROUPAGE'||noteUp.includes('GROUPAGE'));
 
-  // forceService dal campo rules (già elaborato) o dalla nota grezza
-  const forceGroupage = !!(rules.forceService==='GROUPAGE' || noteUp.includes('GROUPAGE'));
-  const suggestGLS    = !!rules.suggestGLS;
+  // Servizio
+  const svcToSet=forceGroupage?'GROUPAGE':'PALLET';
+  $setVal('tranService',svcToSet);
+  updateTranServiceUI();
 
-  let svcToSet = null;
-  if(forceGroupage){ svcToSet='GROUPAGE'; }
-  else if(!suggestGLS){ svcToSet='PALLET'; }
+  // Quantità (somma o 1)
+  const totalQty=selItems.reduce((s,a)=>s+Math.max(1,parseInt(a.quantita||1)||1),0);
+  $setVal('tranQty',String(Math.max(1,totalQty)));
 
-  if(svcToSet){
-    $setVal('tranService',svcToSet);
-    updateTranServiceUI();
-    msgs.push('→ Servizio: '+svcToSet+(forceGroupage?' (da regola articolo)':''));
-  }
+  const msgs=['Servizio: '+svcToSet+' · Qtà totale: '+totalQty];
 
-  const currentSvc=$val('tranService');
-
-  // ── PALLET: imposta palletType ──
-  if(currentSvc==='PALLET'){
-    // Priorità: 1) CSV listino  2) articles.json pack.palletType
-    const listinoItem=listino.find(i=>i.codice===a.codice);
-    const rawPt=(listinoItem?.palletType||tranArt?.pack?.palletType||'').toString().trim();
+  if(svcToSet==='PALLET'){
+    const pt=(tranArt?.pack?.palletType||'').trim();
     const palletSel=$id('tranPalletType');
-    let matchedType=null;
-
-    if(rawPt&&palletSel){
-      const upper=rawPt.toUpperCase();
+    if(pt&&palletSel){
       const opts=[...palletSel.options].filter(o=>o.value);
-      // Match esatto prima
-      let match=opts.find(o=>o.value.toUpperCase()===upper);
-      // Poi parziale più corto
-      if(!match){
-        const partials=opts.filter(o=>o.value.toUpperCase().startsWith(upper));
-        if(partials.length) match=partials.reduce((a,b)=>a.value.length<=b.value.length?a:b);
-      }
-      if(match){ palletSel.value=match.value; matchedType=match.value; }
-    }
-
-    if(matchedType){
-      msgs.push('✅ Bancale: '+matchedType);
-    } else if(rawPt){
-      msgs.push('⚠️ Bancale "'+rawPt+'" non trovato — selezionalo manualmente.');
-    } else {
-      msgs.push('⚠️ Taglia bancale non rilevata — selezionala manualmente.');
-    }
+      const match=opts.find(o=>o.value.toUpperCase()===pt.toUpperCase());
+      if(match){palletSel.value=match.value;msgs.push('✅ Bancale: '+match.value);}
+      else msgs.push('⚠️ Bancale "'+pt+'" non trovato — selezionalo manualmente');
+    } else msgs.push('⚠️ Taglia bancale non disponibile — selezionala manualmente');
   }
 
-  // ── GROUPAGE: imposta LM / quintali / bancali da rules ──
-  if(currentSvc==='GROUPAGE'){
-    let lmSet=false;
-    // 1) da rules (già parsati)
-    if(rules.groupageLm!=null){
-      $setVal('tranLm',String(rules.groupageLm));lmSet=true;
-      msgs.push('LM: '+rules.groupageLm+' m');
-    }
-    if(rules.groupageQuintali!=null){ $setVal('tranQuintali',String(rules.groupageQuintali)); }
-    if(rules.groupagePalletCount!=null){ $setVal('tranPalletCount',String(rules.groupagePalletCount)); }
-
-    // 2) fallback: cerca "X MT" nella nota grezza
-    if(!lmSet && note){
-      const mLm=noteUp.match(/(\d+(?:[.,]\d+)?)\s*MT/);
-      if(mLm){
-        const lmVal=Number(mLm[1].replace(',','.'));
-        if(Number.isFinite(lmVal)&&lmVal>0){ $setVal('tranLm',String(lmVal)); msgs.push('LM: '+lmVal+' m (da nota)'); }
-      }
-    }
-
-    // noSponda
-    if(rules.noSponda){
-      const spEl=$id('tranSponda');
-      if(spEl){ spEl.checked=false; spEl.disabled=true; }
-      msgs.push('⚠️ Sponda non disponibile per questo articolo');
-    } else {
-      const spEl=$id('tranSponda');
-      if(spEl) spEl.disabled=false;
-    }
-
-    // forceQuote
-    if(rules.forceQuote){
-      msgs.push('⚠️ '+( rules.forceQuoteReason||'Quotazione/preventivo consigliato'));
-    }
+  if(svcToSet==='GROUPAGE'){
+    if(rules.groupageLm!=null){$setVal('tranLm',String(rules.groupageLm));msgs.push('LM: '+rules.groupageLm+' m');}
+    if(rules.groupageQuintali!=null) $setVal('tranQuintali',String(rules.groupageQuintali));
+    if(rules.groupagePalletCount!=null) $setVal('tranPalletCount',String(rules.groupagePalletCount));
+    if(rules.noSponda){const sp=$id('tranSponda');if(sp){sp.checked=false;sp.disabled=true;}msgs.push('⚠️ Sponda N/D');}
+    else{const sp=$id('tranSponda');if(sp)sp.disabled=false;}
+    if(rules.forceQuote) msgs.push('⚠️ '+(rules.forceQuoteReason||'Quotazione consigliata'));
   }
 
-  // ── Feedback aggiornato ──
   $setText('tranLinkInfo',msgs.join(' — '));
+  showToast('✅ '+msgs[0],2800);
+}
 
-  // Toast sintetico
-  const toastParts=[a.codice,'Qtà '+qta,currentSvc];
-  showToast('✅ '+toastParts.join(' · '),3000);
+// Wrapper: applica da singolo articolo per idx
+function applyTranFromArticolo_byIdx(idx){
+  const a=articoliAggiunti[idx];
+  if(!a)return;
+  const tranArt=findTranArticle(a.codice,a.descrizione);
+  applyTranArticleData(tranArt||{pack:{palletType:(listino.find(i=>i.codice===a.codice)?.palletType||'')}},
+    [a]);
+  // Aggiunge il codice nell'info
+  $setText('tranLinkInfo','Articolo: '+a.codice+' — '+$id('tranLinkInfo').textContent);
+}
+
+function applyTranFromArticolo(){
+  const idx=parseInt($val('tranLinkArticle'));
+  if(isNaN(idx)||!articoliAggiunti[idx]){showToast('⚠️ Seleziona un articolo');return;}
+  applyTranFromArticolo_byIdx(idx);
 }
 
 // ── AGGIUNGI COSTO TRASPORTO AL PREVENTIVO ──
@@ -1197,6 +1306,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   $id('btnTranCalc')?.addEventListener('click',onTranCalc);
   $id('btnTranAddToPreventivo')?.addEventListener('click',addTranToPreventivo);
   $id('btnTranApplyArticle')?.addEventListener('click',applyTranFromArticolo);
+
+  // Modalità singolo/multi
+  document.querySelectorAll('input[name="tranMode"]').forEach(radio=>{
+    radio.addEventListener('change',()=>{
+      const isMulti=$id('tranModeMulti')?.checked;
+      const single=$id('tranSingleSection');
+      const multi=$id('tranMultiSection');
+      if(single) single.style.display=isMulti?'none':'';
+      if(multi)  multi.style.display=isMulti?'':'none';
+      if(isMulti) refreshTranMultiList();
+    });
+  });
+  $id('btnTranApplyMulti')?.addEventListener('click',cercaCombinazione);
+  $id('btnTranApplyCombo')?.addEventListener('click',()=>{
+    const pt=$val('tranComboPalletType');
+    if(!pt){showToast('⚠️ Seleziona una taglia bancale');return;}
+    // Applica manualmente la taglia scelta
+    $setVal('tranService','PALLET');
+    updateTranServiceUI();
+    $setVal('tranPalletType',pt);
+    $setText('tranLinkInfo','Taglia impostata manualmente: '+pt+' — imposta Regione e calcola.');
+    showToast('✅ Bancale impostato: '+pt);
+  });
   $id('btnTranWA')?.addEventListener('click',()=>{
     const r=buildTranReport();if(!r)return;
     window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(r),'_blank');
