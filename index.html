@@ -299,16 +299,55 @@
 
       </div><!-- .tran-grid -->
 
-      <!-- Collegamento articolo preventivo -->
+      <!-- Collegamento articoli dal Preventivo -->
       <div class="tran-link-box" id="tranLinkBox">
-        <div class="tran-link-title">🔗 Collega articolo dal Preventivo</div>
-        <div class="tran-link-row">
-          <select id="tranLinkArticle">
-            <option value="">— Seleziona articolo dal preventivo —</option>
-          </select>
-          <button class="btn-sm" id="btnTranApplyArticle">Applica dati</button>
+        <div class="tran-link-title">🔗 Collega articoli dal Preventivo</div>
+
+        <!-- Modalità: singolo o multi -->
+        <div class="tran-mode-row">
+          <label class="toggle-label">
+            <input type="radio" name="tranMode" id="tranModeSingle" value="single" checked/>
+            <span>Articolo singolo</span>
+          </label>
+          <label class="toggle-label">
+            <input type="radio" name="tranMode" id="tranModeMulti" value="multi"/>
+            <span>Combinazione più articoli (stesso bancale)</span>
+          </label>
         </div>
-        <p class="hint">💡 Aggiungendo la colonna <code>PalletType</code> al CSV (es. <code>FULL</code>, <code>MEDIUM</code>, <code>HALF</code>…) la taglia bancale viene impostata automaticamente.</p>
+
+        <!-- Singolo -->
+        <div id="tranSingleSection">
+          <div class="tran-link-row">
+            <select id="tranLinkArticle">
+              <option value="">— Seleziona articolo dal preventivo —</option>
+            </select>
+            <button class="btn-sm" id="btnTranApplyArticle">Applica dati</button>
+          </div>
+        </div>
+
+        <!-- Multi -->
+        <div id="tranMultiSection" style="display:none">
+          <p class="hint">Seleziona gli articoli che vanno sulla <strong>stessa spedizione</strong>. L'app cerca la combinazione nel listino trasporti e suggerisce la taglia bancale corretta.</p>
+          <div id="tranMultiCheckList" class="tran-multi-list"></div>
+          <div class="tran-link-row" style="margin-top:8px">
+            <button class="btn-sm" id="btnTranApplyMulti">🔍 Cerca combinazione</button>
+          </div>
+          <!-- Risultato ricerca combinazione -->
+          <div id="tranComboResult" style="display:none" class="tran-combo-result">
+            <div class="tran-combo-title" id="tranComboTitle"></div>
+            <div id="tranComboOptions" class="tran-combo-options"></div>
+            <div class="tran-combo-manual" id="tranComboManual" style="display:none">
+              <label class="field-tran">
+                <span>Seleziona taglia bancale manualmente</span>
+                <select id="tranComboPalletType">
+                  <option value="">— Scegli taglia —</option>
+                </select>
+              </label>
+              <button class="btn-sm" id="btnTranApplyCombo">Applica taglia selezionata</button>
+            </div>
+          </div>
+        </div>
+
         <p class="tran-link-info" id="tranLinkInfo"></p>
       </div>
 
