@@ -215,3 +215,23 @@ tr:hover td{background:var(--brand-light)}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── TRASPORTO: modo singolo/multi ── */
+.tran-mode-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;padding:8px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.tran-multi-list{display:flex;flex-direction:column;gap:6px;margin:8px 0;max-height:200px;overflow-y:auto}
+.tran-multi-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;cursor:pointer;transition:background .15s}
+.tran-multi-item:hover{background:var(--brand-light)}
+.tran-multi-item.selected{background:var(--brand-light);border-color:var(--brand)}
+.tran-multi-item input[type="checkbox"]{accent-color:var(--brand);width:15px;height:15px}
+
+/* Risultato combinazione */
+.tran-combo-result{margin-top:10px;padding:12px;background:var(--surface2);border:1px solid var(--tran-border);border-radius:var(--radius-sm)}
+.tran-combo-title{font-size:.82rem;font-weight:700;color:var(--tran);margin-bottom:8px}
+.tran-combo-options{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.tran-combo-option{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;cursor:pointer;transition:all .15s}
+.tran-combo-option:hover{background:var(--brand-light);border-color:var(--brand)}
+.tran-combo-option.exact{border-color:var(--tran);background:var(--tran-bg)}
+.tran-combo-option .combo-name{font-weight:600}
+.tran-combo-option .combo-pallet{color:var(--tran);font-weight:700;font-size:.85rem}
+.tran-combo-option .combo-match{font-size:.75rem;color:var(--muted)}
+.tran-combo-manual{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
