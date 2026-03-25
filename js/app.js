@@ -732,9 +732,10 @@ function updateTranServiceUI(){
   const isPallet=svc==='PALLET';
   const show=(id,yes)=>{const e=$id(id);if(e)e.style.display=yes?'':'none';};
   show('tranPalletTypeField',isPallet);
-  show('tranProvinceField',!isPallet);
-  show('tranLmField',!isPallet);
-  show('tranQuintaliField',!isPallet);
+  show('tranQtyField',        isPallet);  // qty bancali: solo per PALLET
+  show('tranProvinceField',  !isPallet);
+  show('tranLmField',        !isPallet);
+  show('tranQuintaliField',  !isPallet);
   show('tranPalletCountField',!isPallet);
 }
 
@@ -888,7 +889,7 @@ function onTranCalc(){
   // Riepilogo
   const lines=[];
   lines.push('Servizio: '+svc);
-  if(svc==='PALLET'){lines.push('Regione: '+region);lines.push('Bancale: '+palletType);lines.push('Quantità: '+qty);}
+  if(svc==='PALLET'){lines.push('Regione: '+(region||'—'));lines.push('Bancale: '+(palletType||'—'));lines.push('Quantità: '+qty);}
   else{lines.push('Provincia: '+province);if(lm)lines.push('LM: '+lm);if(quintali)lines.push('Quintali: '+quintali);if(palletCount)lines.push('N° bancali: '+palletCount);}
   if(kmOver)lines.push('Km extra: '+kmOver);
   const optsArr=[];
@@ -935,8 +936,23 @@ function applyTranFromArticolo(){
   const a=articoliAggiunti[idx];
   const qta=Math.max(1,parseInt(a.quantita||1)||1);
   $setVal('tranQty',String(qta));
-  $setText('tranLinkInfo','Articolo collegato: '+a.codice+' (Qtà: '+qta+'). Imposta Regione/Provincia e calcola.');
-  showToast('✅ Dati articolo applicati: Qtà '+qta);
+
+  // Cerca palletType nell'articolo (dal listino CSV, se presente)
+  const listinoItem=listino.find(i=>i.codice===a.codice);
+  const palletType=listinoItem?.palletType||a.palletType||null;
+  const palletSel=$id('tranPalletType');
+  if(palletType&&palletSel){
+    // Cerca corrispondenza esatta o case-insensitive
+    const opts=[...palletSel.options];
+    const match=opts.find(o=>o.value===palletType||o.value.toUpperCase()===palletType.toUpperCase());
+    if(match){ palletSel.value=match.value; }
+  }
+
+  const msgs=['Articolo: '+a.codice+' (Qtà: '+qta+')'];
+  if(palletType) msgs.push('Bancale: '+palletType);
+  msgs.push('Imposta Regione/Provincia e calcola.');
+  $setText('tranLinkInfo',msgs.join(' — '));
+  showToast('✅ Dati applicati: Qtà '+qta+(palletType?' · '+palletType:''));
 }
 
 // ── AGGIUNGI COSTO TRASPORTO AL PREVENTIVO ──
@@ -1042,6 +1058,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindSmartControls();
 
   // ── Trasporto ──
+  updateTranServiceUI(); // inizializza visibilità campi subito (non aspetta loadTranData)
   $id('tranService')?.addEventListener('change',updateTranServiceUI);
   $id('tranRegion')?.addEventListener('change',e=>{updateTranProvinces(e.target.value);});
   $id('btnTranCalc')?.addEventListener('click',onTranCalc);
