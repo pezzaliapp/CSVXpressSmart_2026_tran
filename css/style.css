@@ -185,6 +185,7 @@ tr:hover td{background:var(--brand-light)}
 .tran-link-title{font-size:.82rem;font-weight:700;color:var(--tran);margin-bottom:8px}
 .tran-link-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .tran-link-row select{flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;background:var(--surface);color:var(--text)}
+.tran-link-info{margin-top:8px;font-size:.8rem;line-height:1.5;color:var(--text2);min-height:1.2em}
 
 /* Risultato */
 .tran-result-grid{display:grid;grid-template-columns:220px 1fr;gap:16px;margin-bottom:12px}
