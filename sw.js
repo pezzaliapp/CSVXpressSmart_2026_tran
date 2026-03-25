@@ -2,7 +2,7 @@
 const CACHE = 'csvxpress-tran-v1.0.0';
 const ASSETS = [
   './', './index.html', './css/style.css', './js/app.js', './manifest.json',
-  './data/pallet_rates_by_region.json', './data/groupage_rates.json', './data/geo_provinces.json',
+  './data/pallet_rates_by_region.json', './data/groupage_rates.json', './data/geo_provinces.json', './data/articles.json',
   './icon/icon-192.png', './icon/icon-512.png',
   'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',

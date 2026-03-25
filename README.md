@@ -20,10 +20,11 @@ CSVXpressSmart_2026_tran/
 ├── icon/
 │   ├── icon-192.png
 │   └── icon-512.png
-└── data/                   ← Tariffe (aggiornabili senza toccare il codice)
+└── data/                   ← Tariffe e articoli (aggiornabili senza toccare il codice)
     ├── pallet_rates_by_region.json
     ├── groupage_rates.json
-    └── geo_provinces.json
+    ├── geo_provinces.json
+    └── articles.json           ← Articoli con palletType e regole automatiche
 ```
 
 ---
@@ -84,11 +85,19 @@ Calcolo automatico costi trasporto con gli stessi dati e la stessa logica dell'a
 | Km oltre capoluogo | Info + eventuale supplemento (configurabile) |
 | Disagiata / ZTL | Avviso + eventuale supplemento (configurabile) |
 
-#### Collegamento con il Preventivo
-1. Nel riquadro **"Collega articolo dal preventivo"** seleziona un articolo già aggiunto
-2. Clicca **Applica dati** → vengono pre-compilati: quantità e tipo bancale (se disponibile nel listino)
-3. Scegli Regione / Provincia, imposta le opzioni e clicca **Calcola Trasporto**
-4. Clicca **➕ Aggiungi al Preventivo** → il costo trasporto viene inserito come riga separata nel preventivo e l'app passa automaticamente al tab Preventivo
+#### Collegamento automatico con il Preventivo
+1. Aggiungi articoli nel tab Preventivo
+2. Vai al tab Trasporto → sezione **"Collega articolo dal preventivo"**
+3. Seleziona l'articolo e clicca **Applica dati** → l'app imposta automaticamente:
+   - **Servizio** (PALLET o GROUPAGE) — da `articles.json` rules
+   - **Taglia bancale** — da `articles.json` `pack.palletType` o colonna `PalletType` nel CSV
+   - **LM / Quintali / N° bancali** — da `articles.json` rules (per articoli GROUPAGE)
+   - **Sponda disabilitata** — se l'articolo ha `noSponda: true`
+   - **Avviso quotazione** — se l'articolo ha `forceQuote: true`
+   - **Quantità** — dalla riga del preventivo
+4. Seleziona **Regione** (sempre obbligatoria) e **Provincia** (solo per GROUPAGE)
+5. Clicca **Calcola Trasporto**
+6. Clicca **➕ Aggiungi al Preventivo** → riga trasporto inserita, torna al tab Preventivo
 
 ---
 
@@ -136,6 +145,40 @@ I file JSON nella cartella `/data/` sono gli stessi dell'app Trasporti-Use-Frien
   }
 }
 ```
+
+### `data/articles.json`
+Elenco articoli con tipo bancale e regole di spedizione (stesso file dell'app Trasporti-Use-Friendly):
+```json
+[
+  {
+    "id": "...",
+    "code": "PUMA",
+    "name": "PUMA",
+    "pack": { "palletType": "LIGHT" },
+    "rules": {},
+    "note": ""
+  },
+  {
+    "code": "FT 600 HY",
+    "pack": { "palletType": "FULL" },
+    "rules": {
+      "forceService": "GROUPAGE",
+      "groupageLm": 3.0,
+      "groupageQuintali": 24.6,
+      "groupagePalletCount": 1,
+      "noSponda": true,
+      "forceQuote": true
+    },
+    "note": "NO SPONDA - GROUPAGE 3 MT / quotazione"
+  }
+]
+```
+Campi rilevanti:
+- `pack.palletType` — taglia bancale (auto-fill nel calcolo PALLET)
+- `rules.forceService` — se `"GROUPAGE"`, forza automaticamente il servizio
+- `rules.groupageLm/groupageQuintali/groupagePalletCount` — parametri auto-fill per Groupage
+- `rules.noSponda` — disabilita la checkbox Sponda
+- `rules.forceQuote` — mostra avviso "quotazione/preventivo consigliato"
 
 ### `data/geo_provinces.json`
 ```json
@@ -189,12 +232,37 @@ L'app sarà disponibile su `https://TUO_USER.github.io/CSVXpressSmart_2026_tran/
 
 ## Formato CSV Listino
 
+### Colonne obbligatorie
 ```csv
 Codice;Descrizione;PrezzoLordo;CostoTrasporto;CostoInstallazione
 00100208;PUMA CE 1ph 230V;17000;390;320
 00100210;CM 1200BB CE 1ph;22200;390;320
 ```
 
+### Colonna opzionale PalletType (raccomandata)
+Aggiungendo la colonna `PalletType` al CSV, quando colleghi un articolo nel tab Trasporto la taglia bancale viene impostata **automaticamente**:
+
+```csv
+Codice;Descrizione;PrezzoLordo;CostoTrasporto;CostoInstallazione;PalletType
+00100208;PUMA CE 1ph 230V;17000;390;320;FULL
+00100210;CM 1200BB CE 1ph;22200;390;320;MEGA + 10%
+00100299;F 26A BIKE NERO;3880;250;240;HALF
+```
+
+Valori ammessi per `PalletType` (devono corrispondere esattamente alle chiavi del listino tariffe):
+```
+MINI · QUARTER · QUARTER + 50% · HALF · HALF + 50%
+MEDIUM · MEDIUM + 10% · MEDIUM + 30% · MEDIUM + 80%
+LIGHT · LIGHT + 10% · LIGHT + 50%
+LARGE · LARGE + 10% · LARGE + 80%
+FULL · FULL + 10%
+BIG · BIG + 10%
+MEGA · MEGA + 10% · MEGA + 30%
+```
+
+Se la colonna è assente o il valore non è riconosciuto, l'app mostra un avviso e la taglia va selezionata manualmente dal menu.
+
+### Regole formato
 - Separatore: `;` (punto e virgola) oppure `,` (auto-rilevato)
 - Encoding: UTF-8 (anche con BOM)
 - Prima riga: intestazioni (obbligatorie, case-insensitive)
