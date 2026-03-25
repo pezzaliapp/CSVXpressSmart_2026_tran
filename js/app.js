@@ -36,6 +36,7 @@ const TRAN = {
   palletRates:   null,   // pallet_rates_by_region.json
   groupageRates: null,   // groupage_rates.json
   geo:           null,   // geo_provinces.json
+  articles:      [],     // articles.json (palletType + rules per articolo)
   loaded:        false,
 };
 
@@ -172,13 +173,22 @@ function saveSettings() {
 // LISTINO CSV
 // ──────────────────────────────────────────────────────────
 function normalizeListino(rows) {
-  return rows.map(r => ({
-    codice:             String(r['Codice']||r['codice']||'').trim(),
-    descrizione:        String(r['Descrizione']||r['descrizione']||'').trim(),
-    prezzoLordo:        parseDec(r['PrezzoLordo']||r['prezzoLordo']||0),
-    costoTrasporto:     parseDec(r['CostoTrasporto']||r['costoTrasporto']||0),
-    costoInstallazione: parseDec(r['CostoInstallazione']||r['costoInstallazione']||0),
-  })).filter(r => r.codice);
+  return rows.map(r => {
+    // PalletType: accetta vari nomi colonna (opzionale)
+    const palletType = (
+      r['PalletType'] || r['palletType'] || r['Pallettype'] ||
+      r['TipoBancale'] || r['tipobancale'] || r['Bancale'] || ''
+    ).toString().trim().toUpperCase() || null;
+
+    return {
+      codice:             String(r['Codice']||r['codice']||'').trim(),
+      descrizione:        String(r['Descrizione']||r['descrizione']||'').trim(),
+      prezzoLordo:        parseDec(r['PrezzoLordo']||r['prezzoLordo']||0),
+      costoTrasporto:     parseDec(r['CostoTrasporto']||r['costoTrasporto']||0),
+      costoInstallazione: parseDec(r['CostoInstallazione']||r['costoInstallazione']||0),
+      palletType:         palletType,   // null se non presente nel CSV
+    };
+  }).filter(r => r.codice);
 }
 
 function handleCSVUpload(e) {
@@ -664,17 +674,19 @@ function bindSmartControls(){
 async function loadTranData(){
   const statusEl=$id('tranDataStatus'),errEl=$id('tranDataError');
   try{
-    const [palletRates,groupageRates,geo] = await Promise.all([
+    const [palletRates,groupageRates,geo,articles] = await Promise.all([
       fetch('data/pallet_rates_by_region.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('pallet_rates');return r.json();}),
       fetch('data/groupage_rates.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('groupage_rates');return r.json();}),
       fetch('data/geo_provinces.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch('data/articles.json',{cache:'no-store'}).then(r=>r.ok?r.json():[]).catch(()=>[]),
     ]);
     TRAN.palletRates=palletRates;
     TRAN.groupageRates=groupageRates;
     TRAN.geo=geo;
+    TRAN.articles=Array.isArray(articles)?articles:[];
     TRAN.loaded=true;
 
-    if(statusEl){statusEl.textContent='✅ Tariffe caricate: '+Object.keys(palletRates.rates||{}).length+' regioni PALLET, '+Object.keys(groupageRates.provinces||{}).length+' gruppi province Groupage';statusEl.style.display='block';}
+    if(statusEl){statusEl.textContent='✅ Tariffe caricate: '+Object.keys(palletRates.rates||{}).length+' regioni PALLET · '+Object.keys(groupageRates.provinces||{}).length+' gruppi Groupage · '+TRAN.articles.length+' articoli';statusEl.style.display='block';}
     if(errEl)errEl.style.display='none';
 
     populateTranSelects();
@@ -930,29 +942,150 @@ function refreshTranLinkSelect(){
   $setText('tranLinkInfo', articoliAggiunti.length?'Seleziona un articolo per pre-compilare i campi trasporto.':'Aggiungi prima articoli nel tab Preventivo.');
 }
 
+// ── Normalizzazione per match articolo (identica a Trasporti-Use-Friendly) ──
+function normCode(s){
+  return (s||'').toString().trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+
+/**
+ * Cerca in TRAN.articles l'articolo che corrisponde al codice o descrizione
+ * del preventivo. Strategia (in ordine):
+ * 1. match esatto codice (normalizzato)
+ * 2. codice CSV contenuto nel code articolo o viceversa
+ * 3. nome articolo contenuto nella descrizione CSV o viceversa
+ */
+function findTranArticle(codice, descrizione){
+  if(!TRAN.articles.length) return null;
+  const nc = normCode(codice);
+  const nd = normCode(descrizione);
+
+  // 1) codice esatto
+  let found = TRAN.articles.find(a => normCode(a.code||'') === nc);
+  if(found) return found;
+
+  // 2) codice parziale
+  found = TRAN.articles.find(a => {
+    const ac = normCode(a.code||'');
+    return ac && (ac.includes(nc) || nc.includes(ac));
+  });
+  if(found) return found;
+
+  // 3) nome nella descrizione
+  found = TRAN.articles.find(a => {
+    const an = normCode(a.name||'');
+    return an.length>3 && (an.includes(nd) || nd.includes(an));
+  });
+  return found || null;
+}
+
 function applyTranFromArticolo(){
   const idx=parseInt($val('tranLinkArticle'));
   if(isNaN(idx)||!articoliAggiunti[idx]){showToast('⚠️ Seleziona un articolo');return;}
   const a=articoliAggiunti[idx];
+
+  // ── Cerca articolo in articles.json (per palletType e rules) ──
+  const tranArt=findTranArticle(a.codice, a.descrizione);
+
+  // ── Quantità ──
   const qta=Math.max(1,parseInt(a.quantita||1)||1);
   $setVal('tranQty',String(qta));
 
-  // Cerca palletType nell'articolo (dal listino CSV, se presente)
-  const listinoItem=listino.find(i=>i.codice===a.codice);
-  const palletType=listinoItem?.palletType||a.palletType||null;
-  const palletSel=$id('tranPalletType');
-  if(palletType&&palletSel){
-    // Cerca corrispondenza esatta o case-insensitive
-    const opts=[...palletSel.options];
-    const match=opts.find(o=>o.value===palletType||o.value.toUpperCase()===palletType.toUpperCase());
-    if(match){ palletSel.value=match.value; }
+  const msgs=[];
+  msgs.push('Articolo: '+a.codice+' — Qtà: '+qta);
+
+  // ── Determina servizio: regole note → forceService / forceGroupage ──
+  const rules=tranArt?.rules||{};
+  const note=tranArt?.note||tranArt?.notes||tranArt?.nota||'';
+  const noteUp=(note||'').toUpperCase();
+
+  // forceService dal campo rules (già elaborato) o dalla nota grezza
+  const forceGroupage = !!(rules.forceService==='GROUPAGE' || noteUp.includes('GROUPAGE'));
+  const suggestGLS    = !!rules.suggestGLS;
+
+  let svcToSet = null;
+  if(forceGroupage){ svcToSet='GROUPAGE'; }
+  else if(!suggestGLS){ svcToSet='PALLET'; }
+
+  if(svcToSet){
+    $setVal('tranService',svcToSet);
+    updateTranServiceUI();
+    msgs.push('→ Servizio: '+svcToSet+(forceGroupage?' (da regola articolo)':''));
   }
 
-  const msgs=['Articolo: '+a.codice+' (Qtà: '+qta+')'];
-  if(palletType) msgs.push('Bancale: '+palletType);
-  msgs.push('Imposta Regione/Provincia e calcola.');
+  const currentSvc=$val('tranService');
+
+  // ── PALLET: imposta palletType ──
+  if(currentSvc==='PALLET'){
+    // Priorità: 1) CSV listino  2) articles.json pack.palletType
+    const listinoItem=listino.find(i=>i.codice===a.codice);
+    const rawPt=(listinoItem?.palletType||tranArt?.pack?.palletType||'').toString().trim();
+    const palletSel=$id('tranPalletType');
+    let matchedType=null;
+
+    if(rawPt&&palletSel){
+      const upper=rawPt.toUpperCase();
+      const opts=[...palletSel.options].filter(o=>o.value);
+      // Match esatto prima
+      let match=opts.find(o=>o.value.toUpperCase()===upper);
+      // Poi parziale più corto
+      if(!match){
+        const partials=opts.filter(o=>o.value.toUpperCase().startsWith(upper));
+        if(partials.length) match=partials.reduce((a,b)=>a.value.length<=b.value.length?a:b);
+      }
+      if(match){ palletSel.value=match.value; matchedType=match.value; }
+    }
+
+    if(matchedType){
+      msgs.push('✅ Bancale: '+matchedType);
+    } else if(rawPt){
+      msgs.push('⚠️ Bancale "'+rawPt+'" non trovato — selezionalo manualmente.');
+    } else {
+      msgs.push('⚠️ Taglia bancale non rilevata — selezionala manualmente.');
+    }
+  }
+
+  // ── GROUPAGE: imposta LM / quintali / bancali da rules ──
+  if(currentSvc==='GROUPAGE'){
+    let lmSet=false;
+    // 1) da rules (già parsati)
+    if(rules.groupageLm!=null){
+      $setVal('tranLm',String(rules.groupageLm));lmSet=true;
+      msgs.push('LM: '+rules.groupageLm+' m');
+    }
+    if(rules.groupageQuintali!=null){ $setVal('tranQuintali',String(rules.groupageQuintali)); }
+    if(rules.groupagePalletCount!=null){ $setVal('tranPalletCount',String(rules.groupagePalletCount)); }
+
+    // 2) fallback: cerca "X MT" nella nota grezza
+    if(!lmSet && note){
+      const mLm=noteUp.match(/(\d+(?:[.,]\d+)?)\s*MT/);
+      if(mLm){
+        const lmVal=Number(mLm[1].replace(',','.'));
+        if(Number.isFinite(lmVal)&&lmVal>0){ $setVal('tranLm',String(lmVal)); msgs.push('LM: '+lmVal+' m (da nota)'); }
+      }
+    }
+
+    // noSponda
+    if(rules.noSponda){
+      const spEl=$id('tranSponda');
+      if(spEl){ spEl.checked=false; spEl.disabled=true; }
+      msgs.push('⚠️ Sponda non disponibile per questo articolo');
+    } else {
+      const spEl=$id('tranSponda');
+      if(spEl) spEl.disabled=false;
+    }
+
+    // forceQuote
+    if(rules.forceQuote){
+      msgs.push('⚠️ '+( rules.forceQuoteReason||'Quotazione/preventivo consigliato'));
+    }
+  }
+
+  // ── Feedback aggiornato ──
   $setText('tranLinkInfo',msgs.join(' — '));
-  showToast('✅ Dati applicati: Qtà '+qta+(palletType?' · '+palletType:''));
+
+  // Toast sintetico
+  const toastParts=[a.codice,'Qtà '+qta,currentSvc];
+  showToast('✅ '+toastParts.join(' · '),3000);
 }
 
 // ── AGGIUNGI COSTO TRASPORTO AL PREVENTIVO ──
