@@ -84,9 +84,6 @@ Calcolo automatico costi trasporto con gli stessi dati e la stessa logica dell'a
 | Km oltre capoluogo | Info + eventuale supplemento (configurabile) |
 | Disagiata / ZTL | Avviso + eventuale supplemento (configurabile) |
 
-#### Ricarico 30%
-Il costo mostrato all'utente è sempre **costo base × 1.30**, identico al comportamento dell'app originale Trasporti-Use-Friendly.
-
 #### Collegamento con il Preventivo
 1. Nel riquadro **"Collega articolo dal preventivo"** seleziona un articolo già aggiunto
 2. Clicca **Applica dati** → vengono pre-compilati: quantità e tipo bancale (se disponibile nel listino)
