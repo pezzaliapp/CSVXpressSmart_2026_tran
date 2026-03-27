@@ -760,7 +760,7 @@ function updateTranDebug(){
   const groupCount=Object.keys(TRAN.groupageRates?.provinces||{}).length;
   el.innerHTML='<b>PALLET:</b> '+regionCount+' regioni | '
     +'<b>Groupage:</b> '+groupCount+' gruppi province | '
-    +'<b>Markup:</b> 30% (fisso) | '
+    +''
     +'<b>Assicurazione:</b> '+(TRAN.palletRates?.meta?.insurance_pct*100||3)+'%';
 }
 
@@ -782,10 +782,31 @@ function resolveGroupageProvinceKey(rawProvince){
   // 1) corrispondenza esatta con chiave singola
   if(provinces[province])return{key:province,data:provinces[province],matchedBy:'exact'};
 
-  // 2) cerca nel gruppo (es. "TO BI VB VC")
+  // 2) cerca nel gruppo per token di 2 lettere (es. "TO BI VB VC", "MT / PZ")
   for(const[key,data]of Object.entries(provinces)){
-    const tokens=key.split(/[\s,\/\-]+/).map(t=>t.trim().toUpperCase()).filter(t=>t.length===2);
+    const tokens=key.split(/[\s,\/\-;]+/).map(t=>t.trim().toUpperCase()).filter(t=>t.length===2&&/^[A-Z]{2}$/.test(t));
     if(tokens.includes(province))return{key,data,matchedBy:'group'};
+  }
+
+  // 3) fallback per regione: usa il campo "region" della chiave groupage
+  // Necessario per province come CA/SS/NU/OR/SU (Sardegna → chiave "TUTTE")
+  // e per qualsiasi altra provincia coperta da una chiave regionale
+  if(TRAN.geo){
+    // Trova la regione della provincia tramite geo_provinces.json
+    let provRegion=null;
+    const rawUp=(rawProvince||'').trim().toUpperCase();
+    for(const[reg,provs]of Object.entries(TRAN.geo)){
+      if(provs.includes(rawUp)||provs.includes(province)){provRegion=reg;break;}
+    }
+    if(provRegion){
+      for(const[key,data]of Object.entries(provinces)){
+        const dr=(data.region||'').toUpperCase();
+        // match esatto o parziale (es "EMILIA R." vs "EMILIA + SAN MARINO")
+        if(dr&&(dr===provRegion.toUpperCase()||provRegion.toUpperCase().startsWith(dr.replace(/[^A-Z]/g,'').slice(0,5)))){
+          return{key,data,matchedBy:'region_fallback',region:provRegion};
+        }
+      }
+    }
   }
 
   return null;
@@ -867,6 +888,11 @@ function computeGroupage({province,lm,quintali,palletCount,opts}){
 // ── AZIONE CALCOLA TRASPORTO ──
 function onTranCalc(){
   if(!TRAN.loaded){showToast('⚠️ Dati tariffe non ancora caricati',3000);return;}
+  // Se c'è un articolo selezionato non ancora applicato, applicalo ora
+  const linkIdx=parseInt($val('tranLinkArticle'));
+  if(!isNaN(linkIdx)&&articoliAggiunti[linkIdx]){
+    applyTranFromArticolo_byIdx(linkIdx);
+  }
 
   const svc=$val('tranService');
   const region=($val('tranRegion')||'').trim().toUpperCase();
@@ -1333,6 +1359,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   $id('btnTranCalc')?.addEventListener('click',onTranCalc);
   $id('btnTranAddToPreventivo')?.addEventListener('click',addTranToPreventivo);
   $id('btnTranApplyArticle')?.addEventListener('click',applyTranFromArticolo);
+  // Auto-fill immediato alla selezione dell'articolo (senza dover premere 'Applica')
+  $id('tranLinkArticle')?.addEventListener('change', function(){
+    const idx=parseInt(this.value);
+    if(!isNaN(idx)&&articoliAggiunti[idx]) applyTranFromArticolo_byIdx(idx);
+  });
 
   // Modalità singolo/multi
   document.querySelectorAll('input[name="tranMode"]').forEach(radio=>{
