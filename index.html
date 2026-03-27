@@ -1,757 +1,397 @@
 <!DOCTYPE html>
-<html lang="it" data-theme="dark">
+<html lang="it" data-app="CSVXpressSmart-TRAN" data-ver="1.0.0">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>PezzaliApp — Cormach Dashboard</title>
-<link rel="manifest" href="manifest.json"/>
-<link rel="icon" href="icon.svg"/>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<style>
-/* ── THEME TOKENS ── */
-:root,[data-theme="dark"]{
-  --bg:        #111827;
-  --bg1:       #1f2937;
-  --bg2:       #1a2233;
-  --bg3:       #253047;
-  --bg4:       #2d3a52;
-  --border:    rgba(255,255,255,.08);
-  --border2:   rgba(255,255,255,.13);
-  --text:      #e2e8f0;
-  --text2:     #94a3b8;
-  --text3:     #4a5568;
-  --green:     #00b894;
-  --green-bg:  rgba(0,184,148,.12);
-  --red:       #e17055;
-  --red-bg:    rgba(225,112,85,.12);
-  --amber:     #fdcb6e;
-  --amber-bg:  rgba(253,203,110,.12);
-  --blue:      #74b9ff;
-  --blue-bg:   rgba(116,185,255,.12);
-  --purple:    #a29bfe;
-  --cyan:      #00cec9;
-  --shadow:    0 1px 3px rgba(0,0,0,.4);
-  --sw: 220px;
-  --th: 52px;
-}
-[data-theme="light"]{
-  --bg:        #f1f5f9;
-  --bg1:       #ffffff;
-  --bg2:       #f8fafc;
-  --bg3:       #e2e8f0;
-  --bg4:       #cbd5e1;
-  --border:    rgba(0,0,0,.08);
-  --border2:   rgba(0,0,0,.15);
-  --text:      #0f172a;
-  --text2:     #475569;
-  --text3:     #94a3b8;
-  --green:     #059669;
-  --green-bg:  rgba(5,150,105,.1);
-  --red:       #dc2626;
-  --red-bg:    rgba(220,38,38,.1);
-  --amber:     #d97706;
-  --amber-bg:  rgba(217,119,6,.1);
-  --blue:      #2563eb;
-  --blue-bg:   rgba(37,99,235,.1);
-  --purple:    #7c3aed;
-  --cyan:      #0891b2;
-  --shadow:    0 1px 3px rgba(0,0,0,.1);
-}
-
-/* ── BASE ── */
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
-body{
-  font-family:'DM Sans',system-ui,sans-serif;
-  font-size:14px;line-height:1.5;
-  background:var(--bg);color:var(--text);
-  display:grid;
-  grid-template-rows:var(--th) 1fr;
-  grid-template-columns:var(--sw) 1fr;
-  transition:background .25s,color .25s;
-}
-
-/* ── TOPBAR ── */
-.topbar{
-  grid-column:1/-1;
-  background:var(--bg1);
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;
-  position:relative;z-index:100;
-  box-shadow:var(--shadow);
-}
-.tb-brand{
-  width:var(--sw);flex-shrink:0;
-  display:flex;align-items:center;gap:10px;
-  padding:0 18px;height:100%;
-  border-right:1px solid var(--border);
-}
-.tb-brand svg{width:22px;height:22px;flex-shrink:0}
-.tb-logo{font-size:13px;font-weight:700;letter-spacing:-.2px;color:var(--text)}
-.tb-logo span{color:var(--green)}
-.tb-filters{
-  flex:1;display:flex;align-items:center;gap:8px;
-  padding:0 16px;overflow-x:auto;scrollbar-width:none;
-}
-.tb-filters::-webkit-scrollbar{display:none}
-.flbl{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
-.fsep{width:1px;height:22px;background:var(--border2);flex-shrink:0;margin:0 2px}
-select,input[type=text]{
-  background:var(--bg2);border:1px solid var(--border2);color:var(--text);
-  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
-  padding:4px 8px;border-radius:6px;outline:none;cursor:pointer;
-  transition:border-color .15s;
-}
-select:focus,input[type=text]:focus{border-color:var(--green)}
-.fchip{
-  display:inline-flex;align-items:center;gap:4px;
-  background:var(--bg2);border:1px solid var(--border2);
-  border-radius:16px;padding:3px 10px;cursor:pointer;
-  font-size:10px;font-weight:600;color:var(--text2);
-  transition:all .15s;white-space:nowrap;
-}
-.fchip:hover,.fchip.on{
-  background:var(--green-bg);border-color:var(--green);color:var(--green);
-}
-.tb-right{display:flex;align-items:center;gap:8px;padding:0 14px;flex-shrink:0}
-.theme-btn{
-  background:var(--bg2);border:1px solid var(--border2);color:var(--text2);
-  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
-  padding:4px 12px;border-radius:6px;cursor:pointer;transition:all .15s;
-  display:flex;align-items:center;gap:5px;
-}
-.theme-btn:hover{border-color:var(--green);color:var(--green)}
-.pill{font-size:9px;font-weight:700;padding:3px 9px;border-radius:12px;letter-spacing:.3px}
-.pill-g{background:var(--green-bg);color:var(--green);border:1px solid rgba(0,184,148,.3)}
-.pill-a{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(253,203,110,.3)}
-.bsm{
-  background:transparent;border:1px solid var(--border2);color:var(--text2);
-  font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;
-  padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .15s;
-}
-.bsm:hover{border-color:var(--green);color:var(--green)}
-
-/* ── SIDEBAR ── */
-.sidebar{
-  background:var(--bg1);border-right:1px solid var(--border);
-  overflow-y:auto;scrollbar-width:none;
-  display:flex;flex-direction:column;
-  box-shadow:var(--shadow);
-}
-.sidebar::-webkit-scrollbar{display:none}
-.sb-period{padding:12px 16px;border-bottom:1px solid var(--border)}
-.sb-period-lbl{font-size:8px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:3px}
-.sb-period-val{font-size:10px;color:var(--green);font-family:'JetBrains Mono',monospace;line-height:1.5}
-.sb-sec{padding:14px 16px 4px;font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px}
-.ni{
-  display:flex;align-items:center;gap:9px;padding:8px 16px;
-  cursor:pointer;font-size:11px;font-weight:500;color:var(--text2);
-  border-left:2px solid transparent;transition:all .12s;
-}
-.ni:hover{color:var(--text);background:rgba(255,255,255,.03)}
-.ni.on{color:var(--green);background:var(--green-bg);border-left-color:var(--green);font-weight:600}
-.ni .ic{font-size:13px;width:16px;text-align:center;flex-shrink:0}
-.nbadge{
-  margin-left:auto;font-size:8px;font-weight:700;
-  background:var(--red-bg);color:var(--red);
-  border:1px solid rgba(225,112,85,.3);padding:1px 5px;border-radius:8px;
-}
-.sb-foot{
-  padding:16px;margin-top:auto;
-  font-size:8px;color:var(--text3);
-  font-family:'JetBrains Mono',monospace;line-height:1.8;
-  border-top:1px solid var(--border);
-}
-
-/* ── MAIN ── */
-.main{overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
-.main::-webkit-scrollbar{width:4px}
-.main::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-
-/* ── UPLOAD ── */
-#upload-screen{
-  min-height:100%;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;padding:40px 24px;
-  background:radial-gradient(ellipse 60% 40% at 50% 35%,var(--green-bg) 0%,transparent 70%);
-}
-.uph{font-size:clamp(22px,3vw,36px);font-weight:700;text-align:center;line-height:1.15;margin-bottom:8px;letter-spacing:-.5px}
-.uph em{color:var(--green);font-style:normal}
-.ups{color:var(--text2);font-size:12px;text-align:center;max-width:480px;line-height:1.7;margin-bottom:40px}
-.upg{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:12px;width:100%;max-width:700px;margin-bottom:24px}
-.upc{
-  background:var(--bg1);border:1.5px dashed var(--border2);border-radius:10px;
-  padding:24px 18px;display:flex;flex-direction:column;align-items:center;gap:9px;
-  cursor:pointer;transition:all .2s;position:relative;overflow:hidden;
-}
-.upc:hover,.upc.drag{border-color:var(--green);background:var(--green-bg)}
-.upc.ok{border-style:solid;border-color:var(--green);background:var(--green-bg)}
-.upc input{position:absolute;inset:0;opacity:0;cursor:pointer}
-.upi{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
-.upi.g{background:var(--green-bg)}.upi.b{background:var(--blue-bg)}.upi.a{background:var(--amber-bg)}
-.upt{font-size:12px;font-weight:600;text-align:center;color:var(--text)}
-.ups2{font-size:10px;color:var(--text2);text-align:center;font-family:'JetBrains Mono',monospace}
-.upc-chk{
-  position:absolute;top:9px;right:9px;width:18px;height:18px;border-radius:50%;
-  background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;
-  font-size:10px;font-weight:800;opacity:0;transition:.2s;
-}
-.upc.ok .upc-chk{opacity:1}
-.bgo{
-  background:var(--green);color:#fff;
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
-  border:none;border-radius:8px;padding:12px 48px;cursor:pointer;
-  transition:all .2s;opacity:.3;pointer-events:none;letter-spacing:.2px;
-}
-.bgo.on{opacity:1;pointer-events:all}
-.bgo.on:hover{background:var(--cyan);transform:translateY(-1px);box-shadow:0 4px 20px var(--green-bg)}
-.upnote{color:var(--text3);font-size:10px;margin-top:8px;font-family:'JetBrains Mono',monospace}
-
-/* ── LOADING ── */
-#loading{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;
-  flex-direction:column;align-items:center;justify-content:center;gap:16px;
-  backdrop-filter:blur(4px);
-}
-.lring{width:44px;height:44px;border:2.5px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.ltxt{color:var(--text);font-size:13px;font-weight:600}
-.lsub{color:var(--text2);font-size:10px;font-family:'JetBrains Mono',monospace}
-
-/* ── PANELS ── */
-.panel{display:none;padding:20px}
-.panel.on{display:block}
-.ptitle{font-size:17px;font-weight:700;letter-spacing:-.3px;margin-bottom:2px}
-.psub{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:18px}
-
-/* ── KPI GRID ── */
-.kr{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:16px}
-.kk{
-  background:var(--bg1);border:1px solid var(--border);border-radius:8px;
-  padding:14px;position:relative;overflow:hidden;cursor:default;
-  transition:border-color .15s,box-shadow .15s;
-}
-.kk:hover{border-color:var(--border2);box-shadow:var(--shadow)}
-.kk-bar{position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0}
-.kk-bar.g{background:var(--green)}.kk-bar.b{background:var(--blue)}
-.kk-bar.a{background:var(--amber)}.kk-bar.r{background:var(--red)}.kk-bar.p{background:var(--purple)}
-.kl{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.9px;margin-bottom:7px}
-.kv{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1;font-family:'JetBrains Mono',monospace}
-.kv.g{color:var(--green)}.kv.r{color:var(--red)}.kv.a{color:var(--amber)}.kv.b{color:var(--blue)}
-.kv.p{color:var(--purple)}.kv.def{color:var(--text)}
-.ka{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
-.ks{font-size:9px;color:var(--text2);font-family:'JetBrains Mono',monospace}
-.dt{font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace}
-.dt.up{background:var(--green-bg);color:var(--green)}
-.dt.dn{background:var(--red-bg);color:var(--red)}
-.dt.nt{background:var(--blue-bg);color:var(--blue)}
-/* sparkline inside KPI */
-.kk-spark{height:28px;margin-top:8px;position:relative}
-
-/* ── CHART GRID ── */
-.cg{display:grid;gap:12px;margin-bottom:12px}
-.c1{grid-template-columns:1fr}
-.c2{grid-template-columns:1fr 1fr}
-.c21{grid-template-columns:2fr 1fr}
-.c12{grid-template-columns:1fr 2fr}
-.c3{grid-template-columns:1fr 1fr 1fr}
-@media(max-width:1100px){.c2,.c21,.c12,.c3{grid-template-columns:1fr}}
-.cc{
-  background:var(--bg1);border:1px solid var(--border);border-radius:8px;
-  padding:16px;transition:border-color .15s;
-}
-.cc:hover{border-color:var(--border2)}
-.cc-h{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:8px}
-.cc-t{font-size:11px;font-weight:700;color:var(--text);letter-spacing:.1px}
-.cc-s{font-size:9px;color:var(--text2);margin-top:2px;font-family:'JetBrains Mono',monospace}
-.cbadge{font-size:8px;font-weight:700;padding:2px 7px;border-radius:8px;white-space:nowrap}
-.cbadge-r{background:var(--red-bg);color:var(--red);border:1px solid rgba(225,112,85,.3)}
-.cbadge-g{background:var(--green-bg);color:var(--green);border:1px solid rgba(0,184,148,.3)}
-.cbadge-a{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(253,203,110,.3)}
-.cw{position:relative}
-.h160{height:160px}.h200{height:200px}.h240{height:240px}
-.h270{height:270px}.h300{height:300px}.h340{height:340px}
-
-/* ── TABLES ── */
-.tw{overflow-x:auto;margin-top:4px}
-table{width:100%;border-collapse:collapse;font-size:11px}
-thead th{
-  background:var(--bg2);color:var(--text3);font-size:8px;font-weight:700;
-  text-transform:uppercase;letter-spacing:1px;padding:8px 10px;text-align:left;
-  white-space:nowrap;border-bottom:1px solid var(--border);
-  cursor:pointer;user-select:none;transition:color .12s;
-}
-thead th:hover{color:var(--text2)}
-thead th.sa::after{content:' ↑';color:var(--green)}
-thead th.sd::after{content:' ↓';color:var(--green)}
-tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
-tbody tr:hover{background:rgba(255,255,255,.025)}
-tbody td{padding:7px 10px;vertical-align:middle;color:var(--text)}
-.mono{font-family:'JetBrains Mono',monospace;font-size:10px}
-.bdg{display:inline-flex;align-items:center;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace}
-.bg{background:var(--green-bg);color:var(--green)}
-.br{background:var(--red-bg);color:var(--red)}
-.ba{background:var(--amber-bg);color:var(--amber)}
-.bb{background:var(--blue-bg);color:var(--blue)}
-.bp{background:rgba(162,155,254,.12);color:var(--purple)}
-
-/* ── SEARCH ── */
-.sw2{position:relative;margin-bottom:10px}
-.sw2 input{width:100%;padding:7px 10px 7px 28px;font-size:11px}
-.sw2::before{content:'⌕';position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
-
-/* ── ALERTS ── */
-.alerts{display:flex;flex-direction:column;gap:10px}
-.al{
-  background:var(--bg1);border-radius:8px;padding:14px 16px;
-  display:flex;align-items:flex-start;gap:12px;
-  border-left:3px solid transparent;transition:all .15s;
-}
-.al:hover{transform:translateX(2px)}
-.al.danger{border-left-color:var(--red);background:var(--red-bg)}
-.al.warn{border-left-color:var(--amber);background:var(--amber-bg)}
-.al.ok{border-left-color:var(--green);background:var(--green-bg)}
-.al.info{border-left-color:var(--blue);background:var(--blue-bg)}
-.al-ic{font-size:17px;flex-shrink:0;margin-top:1px}
-.al-b strong{font-size:12px;display:block;margin-bottom:3px;color:var(--text)}
-.al-b p{font-size:11px;color:var(--text2);line-height:1.6}
-
-/* ── HEATMAP ── */
-.hm{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:14px}
-.hmc{
-  background:var(--bg1);border-radius:6px;padding:12px;border:1px solid var(--border);
-  transition:border-color .15s;
-}
-.hmc:hover{border-color:var(--border2)}
-.hmn{font-size:8px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;line-height:1.4}
-.hmv{font-size:20px;font-weight:700;letter-spacing:-.5px;font-family:'JetBrains Mono',monospace}
-.hms{font-size:8px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace}
-.hmbar{height:3px;background:var(--bg3);border-radius:2px;margin-top:8px;overflow:hidden}
-.hmfill{height:100%;border-radius:2px;transition:width .6s ease}
-
-/* ── AGENT RANK ── */
-.agr{display:flex;flex-direction:column;gap:8px}
-.agrow{
-  background:var(--bg2);border-radius:6px;padding:10px 12px;
-  border:1px solid var(--border);transition:background .12s;
-}
-.agrow:hover{background:var(--bg3)}
-.agrow-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.agno{font-size:10px;font-weight:700;color:var(--text3);font-family:'JetBrains Mono',monospace;width:22px}
-.agname{font-size:12px;font-weight:600;flex:1;color:var(--text)}
-.agval{font-size:11px;font-weight:700;color:var(--green);font-family:'JetBrains Mono',monospace}
-.agbar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
-.agfill{height:100%;border-radius:2px;background:var(--green);transition:width .6s ease}
-
-/* ── COMPARE BAR ── */
-.cmpbar{
-  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  background:var(--bg1);border:1px solid var(--border);border-radius:8px;
-  padding:8px 12px;margin-bottom:12px;
-}
-.cmpbar label{font-size:10px;font-weight:600;color:var(--text2)}
-
-/* ── DESTINATION PILLS ── */
-.dest-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-.dest-pill{
-  font-size:8px;padding:1px 6px;border-radius:8px;
-  background:var(--blue-bg);color:var(--blue);
-  border:1px solid rgba(116,185,255,.2);
-  font-family:'JetBrains Mono',monospace;
-}
-
-/* ── ANIM ── */
-@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.fa{animation:fu .35s ease both}
-.d1{animation-delay:.06s}.d2{animation-delay:.12s}.d3{animation-delay:.18s}
-
-[hidden]{display:none!important}
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>CSVXpressSmart 2026 + Trasporti</title>
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#1565c0"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <link rel="apple-touch-icon" href="icon/icon-192.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
 
-<!-- TOPBAR -->
-<header class="topbar">
-  <div class="tb-brand">
-    <svg viewBox="0 0 22 22" fill="none"><rect width="22" height="22" rx="6" fill="#00b894" fill-opacity=".15"/>
-    <path d="M4 17V11M7.5 17V7M11 17V9.5M14.5 17V4M18 17V8" stroke="#00b894" stroke-width="1.7" stroke-linecap="round"/></svg>
-    <div class="tb-logo">Pezzali<span>App</span></div>
-  </div>
-
-  <div class="tb-filters" id="top-filters" hidden>
-    <span class="flbl">Da</span>
-    <select id="f-da" onchange="applyFilters()"></select>
-    <span class="flbl">A</span>
-    <select id="f-a" onchange="applyFilters()"></select>
-    <div class="fsep"></div>
-    <span class="flbl">Periodo</span>
-    <select id="f-per" onchange="applyFilters()">
-      <option value="">Anno intero</option>
-      <option value="q1">Q1</option><option value="q2">Q2</option>
-      <option value="q3">Q3</option><option value="q4">Q4</option>
-      <option value="m1">Gen</option><option value="m2">Feb</option><option value="m3">Mar</option>
-      <option value="m4">Apr</option><option value="m5">Mag</option><option value="m6">Giu</option>
-      <option value="m7">Lug</option><option value="m8">Ago</option><option value="m9">Set</option>
-      <option value="m10">Ott</option><option value="m11">Nov</option><option value="m12">Dic</option>
-    </select>
-    <div class="fsep"></div>
-    <div class="fchip" id="chip-cmp" onclick="toggleCompare()">⚡ Confronta</div>
-    <select id="f-cmp-a" style="display:none" onchange="applyFilters()"></select>
-    <div class="fsep"></div>
-    <span class="flbl">Agente</span>
-    <select id="f-agt" onchange="applyFilters()"><option value="">Tutti</option></select>
-    <div class="fsep"></div>
-    <span class="flbl">Brand</span>
-    <select id="f-brand" onchange="applyFilters()">
-      <option value="">Tutti</option>
-      <option value="Cormach">Cormach</option>
-      <option value="Cascos">Cascos</option>
-      <option value="__no">Senza listino</option>
-    </select>
-  </div>
-
-  <div class="tb-right">
-    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">🌙 Dark</button>
-    <span class="pill pill-g" id="status-pill">PRONTO</span>
-    <button class="bsm" id="btn-reset" onclick="resetApp()" hidden>↩ Reset</button>
+<header>
+  <div class="header-inner">
+    <div class="logo-wrap">
+      <img src="icon/icon-192.png" alt="Logo" class="logo" onerror="this.style.display='none'"/>
+      <div>
+        <h1>CSVXpressSmart <span class="badge">+ Trasporti</span></h1>
+        <p class="tagline">Preventivi · Ordini · Costi Trasporto automatici</p>
+      </div>
+    </div>
+    <button class="btn-icon" id="btnTheme" title="Tema" aria-label="Cambia tema">🌙</button>
   </div>
 </header>
 
-<!-- SIDEBAR -->
-<nav class="sidebar">
-  <div class="sb-period">
-    <div class="sb-period-lbl">Periodo attivo</div>
-    <div class="sb-period-val" id="sb-period">—</div>
-  </div>
-  <div class="sb-sec">Cruscotto</div>
-  <div class="ni on" onclick="go('overview')"><span class="ic">📊</span>Overview</div>
-  <div class="ni" onclick="go('trend')"><span class="ic">📈</span>Trend & Confronto</div>
-  <div class="sb-sec">Analisi</div>
-  <div class="ni" onclick="go('vendite')"><span class="ic">💶</span>Vendite Categoria</div>
-  <div class="ni" onclick="go('clienti')"><span class="ic">🏢</span>Clienti & Destinazioni</div>
-  <div class="ni" onclick="go('agenti')"><span class="ic">👤</span>Ranking Agenti</div>
-  <div class="ni" onclick="go('sconti')"><span class="ic">🏷️</span>Sconti per Macchina</div>
-  <div class="ni" onclick="go('margine')"><span class="ic">⚖️</span>Marginalità</div>
-  <div class="ni" onclick="go('trasporti')"><span class="ic">🚚</span>Trasporti</div>
-  <div class="ni" onclick="go('ordini')"><span class="ic">📋</span>Ordini Inevasi</div>
-  <div class="sb-sec">Alert</div>
-  <div class="ni" onclick="go('criticita')">
-    <span class="ic">⚠️</span>Criticità
-    <span class="nbadge" id="nbadge">—</span>
-  </div>
-  <div class="sb-foot">
-    PezzaliApp · Cormach Srl<br>
-    Dashboard v3.0 · 2026<br>
-    <span style="color:var(--green)">● </span>elaborazione locale
-  </div>
-</nav>
+<main>
 
-<!-- MAIN -->
-<main class="main" id="main">
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="listino"       role="tab">📋 Listino</button>
+    <button class="tab"        data-tab="disponibilita" role="tab">📦 Disponib.</button>
+    <button class="tab"        data-tab="preventivo"    role="tab">🧾 Preventivo</button>
+    <button class="tab"        data-tab="trasporto"     role="tab">🚚 Trasporto</button>
+  </nav>
 
-<!-- UPLOAD -->
-<div id="upload-screen">
-  <h1 class="uph">Cormach <em>Sales Dashboard</em></h1>
-  <p class="ups">Cruscotto professionale per analisi vendite, sconti per macchina, erosione margine, ranking agenti e ordini inevasi. Tutti i dati elaborati localmente.</p>
-  <div class="upg">
-    <label class="upc" id="uc-v"><input type="file" id="fi-v" accept=".xlsx,.xls"/>
-      <div class="upi g">📊</div><div class="upt">File Vendite</div>
-      <div class="ups2" id="fn-v">XLSX · Spedizioni & Resi</div><div class="upc-chk">✓</div></label>
-    <label class="upc" id="uc-o"><input type="file" id="fi-o" accept=".xlsx,.xls"/>
-      <div class="upi b">📋</div><div class="upt">File Ordini</div>
-      <div class="ups2" id="fn-o">XLSX · Ordini Clienti</div><div class="upc-chk">✓</div></label>
-    <label class="upc" id="uc-l"><input type="file" id="fi-l" accept=".csv,.xlsx,.xls"/>
-      <div class="upi a">💰</div><div class="upt">Listino Prezzi</div>
-      <div class="ups2" id="fn-l">CSV · Prezzi Lordi (opzionale)</div><div class="upc-chk">✓</div></label>
-  </div>
-  <button class="bgo" id="btn-go" onclick="runAnalysis()">⚡ Genera Dashboard</button>
-  <div class="upnote">elaborazione locale — nessun dato inviato a server esterni</div>
-</div>
+  <!-- ══════════════ TAB LISTINO ══════════════ -->
+  <section id="tab-listino" class="tab-panel active">
+    <div class="card">
+      <h2>📋 Listino Prezzi (CSV)</h2>
+      <p class="muted">Colonne: <code>Codice;Descrizione;PrezzoLordo;CostoTrasporto;CostoInstallazione</code></p>
+      <div class="upload-row">
+        <label class="upload-btn" for="csvFileInput">
+          📂 Seleziona CSV
+          <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none"/>
+        </label>
+        <span id="csvFileName" class="muted small">Nessun file</span>
+      </div>
+      <p id="csvError" class="error" style="display:none"></p>
+      <div class="memory-bar">
+        <label class="toggle-label"><input type="checkbox" id="toggleRememberCSV" checked/> Ricorda listino</label>
+        <div class="btn-row">
+          <button class="btn-sm" id="btnLoadSavedCSV">⬆️ Carica salvato</button>
+          <button class="btn-sm btn-danger" id="btnClearSavedCSV">🗑️ Cancella</button>
+        </div>
+        <p id="savedCsvInfo" class="muted small">Nessun listino salvato.</p>
+      </div>
+      <div id="listinoStats" class="stats-bar" style="display:none">
+        <span id="statArticoli">0 articoli</span>
+      </div>
+    </div>
+  </section>
 
-<!-- LOADING -->
-<div id="loading">
-  <div class="lring"></div>
-  <div class="ltxt" id="lmsg">Elaborazione...</div>
-  <div class="lsub" id="lsub">caricamento file</div>
-</div>
+  <!-- ══════════════ TAB DISPONIBILITÀ ══════════════ -->
+  <section id="tab-disponibilita" class="tab-panel">
+    <div class="card">
+      <h2>📦 Situazione Settimanale (XLSX / CSV)</h2>
+      <div class="upload-row">
+        <label class="upload-btn" for="xlsxFileInput">
+          📂 Seleziona XLSX / CSV
+          <input type="file" id="xlsxFileInput" accept=".xlsx,.xls,.csv" style="display:none"/>
+        </label>
+        <span id="xlsxFileName" class="muted small">Nessun file</span>
+      </div>
+      <div class="memory-bar">
+        <label class="toggle-label"><input type="checkbox" id="toggleRememberXLSX" checked/> Ricorda situazione</label>
+        <div class="btn-row">
+          <button class="btn-sm" id="btnLoadSavedXLSX">⬆️ Carica salvata</button>
+          <button class="btn-sm btn-danger" id="btnClearSavedXLSX">🗑️ Cancella</button>
+        </div>
+        <p id="savedXlsxInfo" class="muted small">Nessuna situazione salvata.</p>
+      </div>
+      <p id="xlsxError" class="error" style="display:none">❌ Errore caricamento.</p>
+    </div>
+    <div class="card" id="dispFilters" style="display:none">
+      <div class="filter-row">
+        <input type="text" id="searchDisp" placeholder="🔍 Cerca…" class="search-input"/>
+        <select id="filterDisp" class="select-sm">
+          <option value="all">Tutti</option>
+          <option value="available">✅ Disponibili</option>
+          <option value="zero">⚠️ Esauriti</option>
+          <option value="arriving">🚚 In arrivo</option>
+          <option value="noted">📝 Con note</option>
+        </select>
+        <button class="btn-sm" id="btnExportDisp">📥 Esporta CSV</button>
+      </div>
+      <p class="muted small" id="dispCount"></p>
+    </div>
+    <div class="card table-card" id="dispTableWrap" style="display:none">
+      <div class="table-scroll">
+        <table id="dispTable">
+          <thead><tr>
+            <th>Codice</th><th>Descrizione</th>
+            <th class="num">Disp.</th><th class="num">S15</th><th class="num">S18</th>
+            <th class="num">Maggio</th><th class="num">Giugno</th>
+            <th>Note</th><th>Prenotazioni</th><th>Info</th>
+          </tr></thead>
+          <tbody id="dispBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 
-<!-- PANEL: OVERVIEW -->
-<div class="panel" id="panel-overview">
-  <div class="ptitle">Overview Generale</div>
-  <div class="psub" id="ov-sub">—</div>
-  <div class="kr fa" id="kr-ov"></div>
-  <div class="cg c21 fa d1">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Fatturato Annuale</div><div class="cc-s">barre = fatturato · linea = trasporto · annotazione picco</div></div></div>
-      <div class="cw h300"><canvas id="ch-annual"></canvas></div>
-    </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Mix Categorie</div><div class="cc-s">% su fatturato periodo filtrato</div></div></div>
-      <div class="cw h300"><canvas id="ch-pie"></canvas></div>
-    </div>
-  </div>
-  <div class="cg c2 fa d2">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Trend Trimestrale</div><div class="cc-s">fatturato per quarter · tutti gli anni</div></div></div>
-      <div class="cw h220"><canvas id="ch-qtr"></canvas></div>
-    </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Top 10 Clienti — Periodo</div><div class="cc-s">fatturato cumulativo nel periodo filtrato</div></div></div>
-      <div class="cw h220"><canvas id="ch-top-cli"></canvas></div>
-    </div>
-  </div>
-</div>
+  <!-- ══════════════ TAB PREVENTIVO ══════════════ -->
+  <section id="tab-preventivo" class="tab-panel">
 
-<!-- PANEL: TREND -->
-<div class="panel" id="panel-trend">
-  <div class="ptitle">Trend & Confronto Periodi</div>
-  <div class="psub">confronto mensile o trimestrale tra due anni · variazione % · cumulato progressivo</div>
-  <div class="cmpbar fa">
-    <label>Anno A:</label><select id="tr-a1" onchange="renderTrend()"></select>
-    <label style="margin-left:8px">Anno B:</label><select id="tr-a2" onchange="renderTrend()"></select>
-    <div class="fsep"></div>
-    <label>Vista:</label>
-    <select id="tr-view" onchange="renderTrend()">
-      <option value="m">Mensile</option><option value="q">Trimestrale</option>
-    </select>
-    <div class="fsep"></div>
-    <label>Metrica:</label>
-    <select id="tr-met" onchange="renderTrend()">
-      <option value="f">Fatturato</option><option value="t">Trasporto €</option>
-      <option value="s">Sconto %</option><option value="n">N° Righe</option>
-    </select>
-  </div>
-  <div class="cc fa d1">
-    <div class="cc-h">
-      <div><div class="cc-t" id="tr-title">Confronto Mensile — Fatturato</div><div class="cc-s" id="tr-sub">—</div></div>
-      <div id="tr-delta"></div>
+    <!-- Titolo -->
+    <div class="card">
+      <h2>🧾 Preventivo</h2>
+      <div class="titolo-row">
+        <label for="preventivoTitolo">Cliente / Titolo:</label>
+        <input type="text" id="preventivoTitolo" placeholder="Es. Mario Rossi – Via Roma 1" class="titolo-input" autocomplete="off"/>
+      </div>
     </div>
-    <div class="cw h300"><canvas id="ch-trend"></canvas></div>
-  </div>
-  <div class="cg c2 fa d2">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Cumulato Progressivo</div><div class="cc-s">fatturato anno A vs B</div></div></div>
-      <div class="cw h220"><canvas id="ch-cumul"></canvas></div>
-    </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Δ Variazione %</div><div class="cc-s">differenza B vs A per periodo</div></div></div>
-      <div class="cw h220"><canvas id="ch-delta"></canvas></div>
-    </div>
-  </div>
-</div>
 
-<!-- PANEL: VENDITE -->
-<div class="panel" id="panel-vendite">
-  <div class="ptitle">Vendite per Categoria</div>
-  <div class="psub">clicca su una barra per il drill-down clienti in quella categoria</div>
-  <div class="kr fa" id="kr-vend"></div>
-  <div class="cg c2 fa d1">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Fatturato per Categoria</div><div class="cc-s">clicca barra → clienti della categoria</div></div></div>
-      <div class="cw h280"><canvas id="ch-cat-bar"></canvas></div>
+    <!-- Selezione articolo -->
+    <div class="card">
+      <h2>🔍 Seleziona Articolo</h2>
+      <div class="search-add-row">
+        <input type="text" id="searchListino" placeholder="Cerca codice o descrizione…" class="search-input"/>
+        <select id="listinoSelect"></select>
+        <button class="btn-primary" id="btnAddFromListino">➕ Aggiungi</button>
+      </div>
+      <p class="muted small" id="listinoCount"></p>
+      <p class="muted small" id="dispHint" style="display:none"></p>
+      <details class="manual-add">
+        <summary>✏️ Aggiungi manualmente</summary>
+        <div class="manual-form">
+          <input type="text" id="manCodice" placeholder="Codice"/>
+          <input type="text" id="manDescrizione" placeholder="Descrizione"/>
+          <input type="text" id="manPrezzo" placeholder="Prezzo lordo €" inputmode="decimal"/>
+          <input type="text" id="manTrasporto" placeholder="Trasporto €" inputmode="decimal"/>
+          <input type="text" id="manInstallazione" placeholder="Installazione €" inputmode="decimal"/>
+          <button class="btn-sm" id="btnAddManual">➕ Aggiungi</button>
+        </div>
+      </details>
     </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Volume Pezzi per Categoria</div><div class="cc-s">unità vendute</div></div></div>
-      <div class="cw h280"><canvas id="ch-cat-qty"></canvas></div>
-    </div>
-  </div>
-  <div class="cc fa d2" id="drill-cc" hidden>
-    <div class="cc-h">
-      <div><div class="cc-t" id="drill-t">Clienti →</div><div class="cc-s">clienti nella categoria selezionata · periodo filtrato</div></div>
-      <button class="bsm" onclick="closeDrill()">✕ Chiudi</button>
-    </div>
-    <div class="tw"><table id="tbl-drill"></table></div>
-  </div>
-  <div class="cc fa d3">
-    <div class="cc-h"><div><div class="cc-t">Riepilogo Categorie</div><div class="cc-s">clicca intestazione per ordinare</div></div></div>
-    <div class="tw"><table id="tbl-cat"></table></div>
-  </div>
-</div>
 
-<!-- PANEL: CLIENTI & DESTINAZIONI -->
-<div class="panel" id="panel-clienti">
-  <div class="ptitle">Clienti & Destinazioni</div>
-  <div class="psub">nominativi, destinazioni diverse dalla sede, storico acquisti mensile</div>
-  <div class="cg c2 fa">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Top 12 Clienti — Periodo</div><div class="cc-s">fatturato nel periodo filtrato</div></div></div>
-      <div class="cw h280"><canvas id="ch-cli-rank"></canvas></div>
+    <!-- Opzioni Smart -->
+    <div class="card smart-card">
+      <h3>⚙️ Opzioni Preventivo</h3>
+      <div class="options-grid">
+        <label class="toggle-label"><input type="checkbox" id="toggleSmartMode"/> Modalità Cliente</label>
+        <label class="toggle-label"><input type="checkbox" id="toggleShowVAT"/> Mostra IVA</label>
+        <label class="toggle-label"><input type="checkbox" id="toggleHideVenduto" checked/> Ometti Venduto</label>
+        <label class="toggle-label"><input type="checkbox" id="toggleHideDiff" checked/> Ometti Diff.</label>
+        <label class="toggle-label"><input type="checkbox" id="toggleHideDiscounts" checked/> Ometti sconti nel report</label>
+        <label class="toggle-label"><input type="checkbox" id="toggleShowClientDiscount"/> Modo Sconto Cliente</label>
+        <label class="toggle-label"><input type="checkbox" id="toggleAutoCosti" checked/> Costi auto da listino</label>
+      </div>
+      <div class="vat-row">
+        <label for="vatRate">IVA %</label>
+        <input type="text" id="vatRate" value="22" inputmode="decimal" class="vat-input"/>
+      </div>
+      <div class="eq-discount">Sc. equiv. cliente: <strong id="smartEquivalentDiscount">—</strong></div>
     </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Storico Mensile Cliente</div><div class="cc-s">seleziona cliente per vedere l'andamento</div></div></div>
-      <div style="margin-bottom:8px"><select id="cli-sel" onchange="renderCliStorico()" style="width:100%;font-size:11px;padding:6px 8px"></select></div>
-      <div class="cw h220"><canvas id="ch-cli-st"></canvas></div>
-    </div>
-  </div>
-  <div class="cc fa d2">
-    <div class="cc-h">
-      <div><div class="cc-t">Clienti, Destinazioni & Fatturato</div><div class="cc-s">destinazioni diverse dalla sede principale · ricerca per nome</div></div>
-      <select id="cli-dest-filter" onchange="filterCliTbl()" style="font-size:10px">
-        <option value="">Tutti</option>
-        <option value="multi">Con più destinazioni</option>
-        <option value="single">Sede unica</option>
-      </select>
-    </div>
-    <div class="sw2"><input type="text" id="cli-srch" placeholder="Cerca cliente o destinazione..." oninput="filterCliTbl()"/></div>
-    <div class="tw"><table id="tbl-cli"></table></div>
-  </div>
-</div>
 
-<!-- PANEL: AGENTI -->
-<div class="panel" id="panel-agenti">
-  <div class="ptitle">Ranking Agenti</div>
-  <div class="psub">performance commerciale · quota su totale · evoluzione storica</div>
-  <div class="kr fa" id="kr-agt"></div>
-  <div class="cg c2 fa d1">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Fatturato per Agente</div><div class="cc-s">periodo corrente · con quota %</div></div></div>
-      <div class="cw h260"><canvas id="ch-agt-bar"></canvas></div>
+    <!-- Totali -->
+    <div class="card totali-card" id="totaliCard" style="display:none">
+      <div id="totaleGenerale"></div>
     </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Evoluzione Agenti per Anno</div><div class="cc-s">trend storico per agente</div></div></div>
-      <div class="cw h260"><canvas id="ch-agt-evol"></canvas></div>
-    </div>
-  </div>
-  <div class="cc fa d2">
-    <div class="cc-h"><div><div class="cc-t">Classifica Dettaglio</div></div></div>
-    <div class="agr" id="agr"></div>
-  </div>
-</div>
 
-<!-- PANEL: SCONTI -->
-<div class="panel" id="panel-sconti">
-  <div class="ptitle">Sconti per Macchina / Prodotto</div>
-  <div class="psub">sconto medio applicato per articolo · soglia contrattuale max 60% · solo articoli in listino</div>
-  <div class="kr fa" id="kr-sc"></div>
-  <div class="cg c2 fa d1">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Sconto Medio per Anno</div><div class="cc-s">linea soglia rossa = 60% contrattuale</div></div></div>
-      <div class="cw h220"><canvas id="ch-sc-yr"></canvas></div>
+    <!-- Tabella articoli -->
+    <div class="card table-card">
+      <div class="table-scroll">
+        <table id="articoli-table">
+          <thead><tr>
+            <th data-col="codice">Codice</th>
+            <th data-col="descrizione">Descrizione</th>
+            <th data-col="dispBadge" title="Disponibilità">Disp.</th>
+            <th data-col="prezzoLordo">P.Lordo</th>
+            <th data-col="sconto1">Sc.1%</th>
+            <th data-col="sconto2">Sc.2%</th>
+            <th data-col="scontoCliente">Sc.Cli%</th>
+            <th data-col="margine">Marg.%</th>
+            <th data-col="totaleNetto">Netto/cad</th>
+            <th data-col="trasporto">Trasp.</th>
+            <th data-col="installazione">Inst.</th>
+            <th data-col="qta">Qtà</th>
+            <th data-col="granTot">Tot.</th>
+            <th data-col="venduto">Vend.€</th>
+            <th data-col="diff">Diff.</th>
+            <th data-col="azioni">Az.</th>
+          </tr></thead>
+          <tbody id="articoliBody"></tbody>
+        </table>
+      </div>
+      <p class="muted small" id="emptyMsg">Nessun articolo. Cerca e aggiungi dal listino.</p>
     </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Distribuzione Sconti</div><div class="cc-s">frequenza per fascia · rosso = oltre soglia contrattuale</div></div></div>
-      <div class="cw h220"><canvas id="ch-sc-dist"></canvas></div>
-    </div>
-  </div>
-  <div class="cc fa d2">
-    <div class="cc-h">
-      <div><div class="cc-t">Sconti per Prodotto/Macchina</div><div class="cc-s">semaforo: verde ≤50% · arancio 50-60% · rosso &gt;60%</div></div>
-      <select id="sc-flt" onchange="renderScontiTbl()" style="font-size:10px">
-        <option value="all">Tutti</option><option value="over">Solo &gt;60%</option><option value="ok">Solo ≤60%</option>
-      </select>
-    </div>
-    <div class="sw2"><input type="text" id="sc-srch" placeholder="Cerca prodotto..." oninput="renderScontiTbl()"/></div>
-    <div class="tw"><table id="tbl-sc"></table></div>
-  </div>
-  <div class="cc fa d3" style="margin-top:12px">
-    <div class="cc-h"><div><div class="cc-t">Top Clienti con Sconto &gt;60%</div><div class="cc-s">clienti con più transazioni oltre soglia</div></div></div>
-    <div class="tw"><table id="tbl-over60-cli"></table></div>
-  </div>
-</div>
 
-<!-- PANEL: MARGINE -->
-<div class="panel" id="panel-margine">
-  <div class="ptitle">Marginalità & Erosione Margine</div>
-  <div class="psub">sconto% + incidenza trasporto% = % margine reale eroso per categoria</div>
-  <div class="hm fa" id="hm-margine"></div>
-  <div class="cg c2 fa d1">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Erosione per Categoria</div><div class="cc-s">sconto + trasporto = % totale erosa · soglia critica 80%</div></div></div>
-      <div class="cw h260"><canvas id="ch-eros"></canvas></div>
+    <!-- Export -->
+    <div class="card">
+      <h3>📤 Esporta Preventivo</h3>
+      <div class="export-grid">
+        <button class="btn-export" id="btnWA">💬 WhatsApp</button>
+        <button class="btn-export" id="btnTXT">📄 TXT</button>
+        <button class="btn-export btn-secondary" id="btnWANoMarg">💬 WA (no marg.)</button>
+        <button class="btn-export btn-secondary" id="btnTXTNoMarg">📄 TXT (no marg.)</button>
+        <button class="btn-export btn-accent" id="btnCopyClip">📋 Copia</button>
+        <button class="btn-export btn-danger-soft" id="btnClearAll">🗑️ Svuota</button>
+      </div>
+      <pre class="report-preview" id="reportPreview" style="display:none"></pre>
     </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Sconto vs Incidenza Trasporto</div><div class="cc-s">scatter — ogni punto = categoria · dimensione = fatturato</div></div></div>
-      <div class="cw h260"><canvas id="ch-scatter"></canvas></div>
-    </div>
-  </div>
-  <div class="cc fa d2">
-    <div class="cc-h"><div><div class="cc-t">Riepilogo Marginalità</div></div></div>
-    <div class="tw"><table id="tbl-marg"></table></div>
-  </div>
-</div>
+  </section>
 
-<!-- PANEL: TRASPORTI -->
-<div class="panel" id="panel-trasporti">
-  <div class="ptitle">Analisi Trasporti</div>
-  <div class="psub">costi, incidenza sul fatturato, andamento storico, picchi anomali</div>
-  <div class="kr fa" id="kr-tr"></div>
-  <div class="cg c21 fa d1">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Trasporto & Incidenza per Anno</div><div class="cc-s">barre = € trasporto · linea = % su fatturato · annotazione picco 2022</div></div></div>
-      <div class="cw h260"><canvas id="ch-tr-yr"></canvas></div>
-    </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Distribuzione Porto</div><div class="cc-s">tipologia per n° spedizioni</div></div></div>
-      <div class="cw h260"><canvas id="ch-porto"></canvas></div>
-    </div>
-  </div>
-  <div class="cc fa d2">
-    <div class="cc-h"><div><div class="cc-t">Dettaglio per Anno</div></div></div>
-    <div class="tw"><table id="tbl-tr"></table></div>
-  </div>
-</div>
+  <!-- ══════════════ TAB TRASPORTO ══════════════ -->
+  <section id="tab-trasporto" class="tab-panel">
 
-<!-- PANEL: ORDINI -->
-<div class="panel" id="panel-ordini">
-  <div class="ptitle">Ordini Inevasi</div>
-  <div class="psub">portafoglio aperto · scadenze · priorità evasione · ordini scaduti in rosso</div>
-  <div class="kr fa" id="kr-ord"></div>
-  <div class="cg c2 fa d1">
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Valore Inevaso per Cliente</div><div class="cc-s">top 12 clienti con ordini aperti</div></div></div>
-      <div class="cw h260"><canvas id="ch-ord-cli"></canvas></div>
+    <div class="card tran-info-card">
+      <h2>🚚 Calcolo Costo Trasporto</h2>
+      <p class="muted">Dati da <strong>alessandropezzali.it/Trasporti-Use-Friendly</strong> — calcolo automatico integrato.<br>
+      Calcolo automatico basato sulle tariffe ufficiali.</p>
+      <div id="tranDataStatus" class="stats-bar" style="display:none"></div>
+      <p id="tranDataError" class="error" style="display:none"></p>
     </div>
-    <div class="cc">
-      <div class="cc-h"><div><div class="cc-t">Scadenze Consegna</div><div class="cc-s">valore per data prevista · rosso = scaduto</div></div></div>
-      <div class="cw h260"><canvas id="ch-ord-date"></canvas></div>
-    </div>
-  </div>
-  <div class="cc fa d2">
-    <div class="cc-h">
-      <div><div class="cc-t">Dettaglio Ordini — Priorità Evasione</div></div>
-      <span id="ord-scad" class="cbadge cbadge-r"></span>
-    </div>
-    <div class="sw2"><input type="text" id="ord-srch" placeholder="Cerca cliente o prodotto..." oninput="filterOrdTbl()"/></div>
-    <div class="tw"><table id="tbl-ord"></table></div>
-  </div>
-</div>
 
-<!-- PANEL: CRITICITÀ -->
-<div class="panel" id="panel-criticita">
-  <div class="ptitle">Criticità & Alert Automatici</div>
-  <div class="psub">anomalie rilevate nell'elaborazione dei dati · aggiornate ad ogni cambio filtro</div>
-  <div class="alerts fa" id="alerts"></div>
-</div>
+    <div class="card">
+      <h3>⚙️ Parametri Spedizione</h3>
+      <div class="tran-grid">
+
+        <label class="field-tran">
+          <span>Servizio</span>
+          <select id="tranService">
+            <option value="PALLET">🏗️ Bancale (PALLET)</option>
+            <option value="GROUPAGE">📦 Groupage / Parziale</option>
+          </select>
+          <div class="hint">Macchine (equilibratrici, ponti…) → tipicamente Bancale</div>
+        </label>
+
+        <label class="field-tran">
+          <span>Regione</span>
+          <select id="tranRegion"></select>
+        </label>
+
+        <label class="field-tran" id="tranProvinceField">
+          <span>Provincia (Groupage)</span>
+          <select id="tranProvince"></select>
+        </label>
+
+        <!-- PALLET fields -->
+        <label class="field-tran" id="tranPalletTypeField">
+          <span>Taglia bancale</span>
+          <select id="tranPalletType"></select>
+          <div class="hint">Seleziona dall'articolo o scegli manualmente</div>
+        </label>
+
+        <label class="field-tran" id="tranQtyField">
+          <span>Quantità bancali</span>
+          <input type="number" id="tranQty" min="1" step="1" value="1" inputmode="numeric"/>
+        </label>
+
+        <!-- GROUPAGE fields -->
+        <label class="field-tran" id="tranLmField">
+          <span>Metri lineari</span>
+          <input type="number" id="tranLm" min="0" step="0.1" value="0" inputmode="decimal"/>
+        </label>
+
+        <label class="field-tran" id="tranQuintaliField">
+          <span>Quintali</span>
+          <input type="number" id="tranQuintali" min="0" step="0.5" value="0" inputmode="decimal"/>
+        </label>
+
+        <label class="field-tran" id="tranPalletCountField">
+          <span>N° bancali (Groupage)</span>
+          <input type="number" id="tranPalletCount" min="0" step="1" value="0" inputmode="numeric"/>
+        </label>
+
+        <!-- Extra options -->
+        <label class="field-tran">
+          <span>Km oltre capoluogo</span>
+          <input type="number" id="tranKmOver" min="0" step="1" value="0" inputmode="numeric"/>
+        </label>
+
+        <label class="field-tran">
+          <span>Opzioni</span>
+          <div class="tran-checks">
+            <label><input type="checkbox" id="tranDisagiata"/> Disagiata / ZTL / isole</label>
+            <label><input type="checkbox" id="tranPreavviso"/> Preavviso telefonico</label>
+            <label><input type="checkbox" id="tranAssicurazione"/> Assicurazione (3%)</label>
+            <label><input type="checkbox" id="tranSponda"/> Sponda (se prevista)</label>
+          </div>
+        </label>
+
+        <label class="field-tran">
+          <span>Note extra</span>
+          <input type="text" id="tranNoteExtra" placeholder="Es. piano rialzato, consegna mattina…"/>
+        </label>
+
+      </div><!-- .tran-grid -->
+
+      <!-- Collegamento articoli dal Preventivo -->
+      <div class="tran-link-box" id="tranLinkBox">
+        <div class="tran-link-title">🔗 Collega articoli dal Preventivo</div>
+
+        <!-- Modalità: singolo o multi -->
+        <div class="tran-mode-row">
+          <label class="toggle-label">
+            <input type="radio" name="tranMode" id="tranModeSingle" value="single" checked/>
+            <span>Articolo singolo</span>
+          </label>
+          <label class="toggle-label">
+            <input type="radio" name="tranMode" id="tranModeMulti" value="multi"/>
+            <span>Combinazione più articoli (stesso bancale)</span>
+          </label>
+        </div>
+
+        <!-- Singolo -->
+        <div id="tranSingleSection">
+          <div class="tran-link-row">
+            <select id="tranLinkArticle">
+              <option value="">— Seleziona articolo dal preventivo —</option>
+            </select>
+            <button class="btn-sm" id="btnTranApplyArticle">🔄 Ricarica dati articolo</button>
+          </div>
+        </div>
+
+        <!-- Multi -->
+        <div id="tranMultiSection" style="display:none">
+          <p class="hint">Seleziona gli articoli che vanno sulla <strong>stessa spedizione</strong>. L'app cerca la combinazione nel listino trasporti e suggerisce la taglia bancale corretta.</p>
+          <div id="tranMultiCheckList" class="tran-multi-list"></div>
+          <div class="tran-link-row" style="margin-top:8px">
+            <button class="btn-sm" id="btnTranApplyMulti">🔍 Cerca combinazione</button>
+          </div>
+          <!-- Risultato ricerca combinazione -->
+          <div id="tranComboResult" style="display:none" class="tran-combo-result">
+            <div class="tran-combo-title" id="tranComboTitle"></div>
+            <div id="tranComboOptions" class="tran-combo-options"></div>
+            <div class="tran-combo-manual" id="tranComboManual" style="display:none">
+              <label class="field-tran">
+                <span>Seleziona taglia bancale manualmente</span>
+                <select id="tranComboPalletType">
+                  <option value="">— Scegli taglia —</option>
+                </select>
+              </label>
+              <button class="btn-sm" id="btnTranApplyCombo">Applica taglia selezionata</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="tran-link-info" id="tranLinkInfo"></p>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" id="btnTranCalc">🚚 Calcola Trasporto</button>
+        <button class="btn-sm" id="btnTranAddToPreventivo" disabled>➕ Aggiungi al Preventivo</button>
+      </div>
+    </div><!-- .card -->
+
+    <!-- Risultato trasporto -->
+    <div class="card" id="tranResultCard" style="display:none">
+      <h3>📊 Risultato</h3>
+      <div class="tran-result-grid">
+        <div class="tran-cost-box">
+          <div class="muted small">Costo preventivato</div>
+          <div class="tran-cost-value" id="tranCostValue">—</div>
+          <div class="muted small" id="tranCostBase"></div>
+        </div>
+        <div>
+          <div class="muted small">Riepilogo</div>
+          <pre id="tranSummary" class="tran-summary-pre"></pre>
+        </div>
+      </div>
+      <div id="tranAlerts" class="tran-alerts"></div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn-sm" id="btnTranWA">💬 WA Trasporto</button>
+        <button class="btn-sm" id="btnTranCopy">📋 Copia</button>
+      </div>
+    </div>
+
+    <!-- Diagnostica trasporto -->
+    <div class="card">
+      <h3>🔧 Dati tariffe caricati</h3>
+      <div class="small" id="tranDebug">—</div>
+    </div>
+
+  </section>
 
 </main>
 
-<script src="app.js"></script>
-<script>
-// Theme init: respect system preference
-(function(){
-  const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  const saved = localStorage.getItem('pza-theme') || sys;
-  document.documentElement.setAttribute('data-theme', saved);
-  const btn = document.getElementById('theme-btn');
-  if (btn) btn.textContent = saved === 'dark' ? '☀️ Light' : '🌙 Dark';
-})();
-function toggleTheme(){
-  const cur = document.documentElement.getAttribute('data-theme');
-  const next = cur === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('pza-theme', next);
-  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀️ Light' : '🌙 Dark';
-  // Redraw charts with new colors
-  if (typeof renderAll === 'function' && document.getElementById('top-filters') && !document.getElementById('top-filters').hidden) {
-    setTimeout(renderAll, 50);
-  }
-}
-if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
-</script>
+<div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="js/app.js" defer></script>
 </body>
 </html>
