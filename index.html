@@ -220,7 +220,7 @@
     <div class="card tran-info-card">
       <h2>🚚 Calcolo Costo Trasporto</h2>
       <p class="muted">Dati da <strong>alessandropezzali.it/Trasporti-Use-Friendly</strong> — calcolo automatico integrato.<br>
-      Il costo mostrato include il <strong>ricarico 30%</strong> (come nell'app originale).</p>
+      Calcolo automatico basato sulle tariffe ufficiali.</p>
       <div id="tranDataStatus" class="stats-bar" style="display:none"></div>
       <p id="tranDataError" class="error" style="display:none"></p>
     </div>
@@ -321,7 +321,7 @@
             <select id="tranLinkArticle">
               <option value="">— Seleziona articolo dal preventivo —</option>
             </select>
-            <button class="btn-sm" id="btnTranApplyArticle">Applica dati</button>
+            <button class="btn-sm" id="btnTranApplyArticle">🔄 Ricarica dati articolo</button>
           </div>
         </div>
 
@@ -362,7 +362,7 @@
       <h3>📊 Risultato</h3>
       <div class="tran-result-grid">
         <div class="tran-cost-box">
-          <div class="muted small">Costo preventivato (+ 30%)</div>
+          <div class="muted small">Costo preventivato</div>
           <div class="tran-cost-value" id="tranCostValue">—</div>
           <div class="muted small" id="tranCostBase"></div>
         </div>
