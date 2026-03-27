@@ -411,10 +411,12 @@ function computeRow(a){
   const useClient=!!smartSettings.showClientDiscount&&!a.__skipClient;
   let sc1=0,sc2=0,marg=0;
   if(useClient) sc1=clamp(parseDec(a.scontoCliente||0),0,100);
-  else{ sc1=clamp(parseDec(a.sconto||0),0,100); sc2=clamp(parseDec(a.sconto2||0),0,100); marg=clamp(parseDec(a.margine||0),-999,100); }
+  else{ sc1=clamp(parseDec(a.sconto||0),0,100); sc2=clamp(parseDec(a.sconto2||0),0,100); marg=clamp(parseDec(a.margine||0),0,99.99); }
   const dopoS1=prezzoLordo*(1-sc1/100);
   const totaleNettoUnit=roundTwo(sc2>0?dopoS1*(1-sc2/100):dopoS1);
-  const conMargineUnit=roundTwo(totaleNettoUnit*(1-marg/100));
+  // MARGINE % sul prezzo di vendita: prezzoVendita = costo / (1 - marg/100)
+  // es. costo=1000, marg=20% → vendita=1250, margine=(1250-1000)/1250=20%
+  const conMargineUnit=marg>0?roundTwo(totaleNettoUnit/(1-marg/100)):totaleNettoUnit;
   const trasporto=Math.max(0,parseDec(a.costoTrasporto||0));
   const installazione=Math.max(0,parseDec(a.costoInstallazione||0));
   const granTotRiga=roundTwo((conMargineUnit+trasporto+installazione)*qta);
@@ -613,7 +615,7 @@ function generaReport(opts){
     lines.push((i+1)+'. '+a.codice+' — '+a.descrizione);
     if(!smartSettings.hideDiscounts&&!noMargine){
       if(client){lines.push('   Sc.cliente: '+clamp(parseDec(a.scontoCliente||0),0,100).toFixed(2)+'%');}
-      else{if(r.sconto1)lines.push('   Sc.1: '+fmtDec(r.sconto1,2,true)+'%');if(r.sconto2)lines.push('   Sc.2: '+fmtDec(r.sconto2,2,true)+'%');if(r.margine)lines.push('   Sc.Ult.: '+fmtDec(r.margine,2,true)+'%');}
+      else{if(r.sconto1)lines.push('   Sc.1: '+fmtDec(r.sconto1,2,true)+'%');if(r.sconto2)lines.push('   Sc.2: '+fmtDec(r.sconto2,2,true)+'%');if(r.margine)lines.push('   Marg.: '+fmtDec(r.margine,2,true)+'%');}
     }
     lines.push('   Prezzo netto: '+fmtEur(pD));lines.push('   Qtà: '+r.qta);
     if(r.trasporto)lines.push('   Trasporto: '+fmtEur(r.trasporto));
@@ -1155,6 +1157,17 @@ function applyTranArticleData(tranArt, selItems){
   $setVal('tranQty',String(Math.max(1,totalQty)));
 
   const msgs=['Servizio: '+svcToSet+' · Qtà totale: '+totalQty];
+  // Highlight campi obbligatori ancora da compilare
+  const needRegion=$id('tranRegion');
+  const needProvince=$id('tranProvince');
+  if(needRegion&&!needRegion.value){
+    needRegion.style.borderColor='var(--warning)';
+    needRegion.style.boxShadow='0 0 0 3px rgba(230,81,0,.18)';
+  }
+  if(svcToSet==='GROUPAGE'&&needProvince&&!needProvince.value){
+    needProvince.style.borderColor='var(--warning)';
+    needProvince.style.boxShadow='0 0 0 3px rgba(230,81,0,.18)';
+  }
 
   if(svcToSet==='PALLET'){
     const pt=(tranArt?.pack?.palletType||'').trim();
@@ -1176,6 +1189,13 @@ function applyTranArticleData(tranArt, selItems){
     if(rules.forceQuote) msgs.push('⚠️ '+(rules.forceQuoteReason||'Quotazione consigliata'));
   }
 
+  // Avvisa su cosa manca ancora
+  if(!$id('tranRegion')?.value)
+    msgs.push('👉 Seleziona la Regione per calcolare');
+  else if(svcToSet==='GROUPAGE'&&!$id('tranProvince')?.value)
+    msgs.push('👉 Seleziona la Provincia per calcolare');
+  else
+    msgs.push('👉 Premi Calcola Trasporto');
   $setText('tranLinkInfo',msgs.join(' — '));
   showToast('✅ '+msgs[0],2800);
 }
@@ -1302,7 +1322,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Trasporto ──
   updateTranServiceUI(); // inizializza visibilità campi subito (non aspetta loadTranData)
   $id('tranService')?.addEventListener('change',updateTranServiceUI);
-  $id('tranRegion')?.addEventListener('change',e=>{updateTranProvinces(e.target.value);});
+  $id('tranRegion')?.addEventListener('change',e=>{
+    updateTranProvinces(e.target.value);
+    // Reset highlight
+    const el=e.target; el.style.borderColor=''; el.style.boxShadow='';
+  });
+  $id('tranProvince')?.addEventListener('change',e=>{
+    const el=e.target; el.style.borderColor=''; el.style.boxShadow='';
+  });
   $id('btnTranCalc')?.addEventListener('click',onTranCalc);
   $id('btnTranAddToPreventivo')?.addEventListener('click',addTranToPreventivo);
   $id('btnTranApplyArticle')?.addEventListener('click',applyTranFromArticolo);
